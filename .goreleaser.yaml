@@ -1,0 +1,54 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hy-smi-exporter
+    main: ./cmd/hy-smi-exporter
+    binary: hy-smi-exporter
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - NOTICE
+      - THIRD_PARTY_NOTICES.md
+      - README.md
+      - README.en.md
+      - CHANGELOG.md
+      - SECURITY.md
+      - SUPPORT.md
+      - ARCHITECTURE.md
+      - ROADMAP.md
+      - metric.md
+      - BUILD_INFO.md
+      - docs/**
+      - examples/**
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  draft: false
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
