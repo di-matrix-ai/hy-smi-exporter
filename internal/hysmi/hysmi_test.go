@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -153,6 +154,23 @@ func TestParseMapCardKeyAddsDeviceIndex(t *testing.T) {
 	}
 }
 
+func TestParseNormalizedByteFields(t *testing.T) {
+	raw := []byte(`[{"device_index":0,"vram_total_bytes":68719476736,"vram_used_bytes":536870912}]`)
+	snap, err := parse(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(snap.Devices) != 1 {
+		t.Fatalf("devices: want 1, got %d", len(snap.Devices))
+	}
+	if got := snap.Devices[0].VRAMTotalBytes; got != 68719476736 {
+		t.Fatalf("vram total bytes: want 68719476736, got %d", got)
+	}
+	if got := snap.Devices[0].VRAMUsedBytes; got != 536870912 {
+		t.Fatalf("vram used bytes: want 536870912, got %d", got)
+	}
+}
+
 func TestParseText(t *testing.T) {
 	raw := []byte("\x1b[31mWarning\x1b[0m\n" +
 		"Driver Version: 6.3.28-V1.3.0b\n" +
@@ -168,7 +186,7 @@ func TestParseText(t *testing.T) {
 		"HCU[1]\t\t: Average Graphics Package Power (W): 53.0\n" +
 		"HCU[1]\t\t: HCU use (%): 0.0\n" +
 		"HCU[1]\t\t: HCU memory use (%): 0\n" +
-		"HCU[1]\t\t: Serial Number: 24004600CHK00555\n" +
+		"HCU[1]\t\t: Serial Number: TEST-SERIAL-0001\n" +
 		"HCU[1]\t\t: Voltage (mV): 743\n" +
 		"HCU[1]\t\t: PCI Bus: 0000:97:00.0 --> OAM ID: 0\n" +
 		"HCU[1]\t\t: Card Series:\t\t BW100\n")
@@ -203,7 +221,10 @@ func TestBackendWithTextFallback(t *testing.T) {
 		"EOF\n")
 	b := New(stub, 0)
 	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
-	snap := b.Snapshot(context.Background(), logger)
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
 	if len(snap.Devices) != 1 || snap.Devices[0].PowerWatts != 20 {
 		t.Fatalf("fallback snapshot: %+v", snap)
 	}
@@ -217,12 +238,35 @@ func TestBackendBinaryNotFound(t *testing.T) {
 	t.Setenv("PATH", "/dev/null")
 	b := New("", 0)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	snap := b.Snapshot(context.Background(), logger)
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err == nil {
+		t.Fatal("expected an error when binary is missing")
+	}
 	if len(snap.Devices) != 0 {
 		t.Fatalf("expected 0 devices when binary missing, got %d", len(snap.Devices))
 	}
-	if !b.missingLogged {
+	if !b.missingLogged.Load() {
 		t.Error("missingLogged flag should be set after first miss")
+	}
+}
+
+func TestBackendBinaryNotFoundConcurrent(t *testing.T) {
+	t.Setenv("PATH", "/dev/null")
+	b := New("", 0)
+	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = b.Snapshot(context.Background(), logger)
+		}()
+	}
+	wg.Wait()
+
+	if !b.missingLogged.Load() {
+		t.Error("missingLogged flag should be set after concurrent misses")
 	}
 }
 
@@ -233,7 +277,10 @@ func TestBackendWithStubBinary(t *testing.T) {
 	stub := writeStub(t, "two_cards.json")
 	b := New(stub, 0)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	snap := b.Snapshot(context.Background(), logger)
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
 	if len(snap.Devices) != 2 {
 		t.Fatalf("devices: want 2, got %d", len(snap.Devices))
 	}
@@ -243,12 +290,15 @@ func TestBackendWithStubBinary(t *testing.T) {
 }
 
 // TestBackendWithFailingStub verifies a non-zero exit from hy-smi
-// is swallowed and produces an empty snapshot.
+// is returned to the caller and produces an empty snapshot.
 func TestBackendWithFailingStub(t *testing.T) {
 	stub := writeStubScript(t, "#!/bin/sh\necho boom >&2\nexit 1\n")
 	b := New(stub, 0)
 	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
-	snap := b.Snapshot(context.Background(), logger)
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err == nil {
+		t.Fatal("expected an error from a failing hy-smi command")
+	}
 	if len(snap.Devices) != 0 {
 		t.Fatalf("expected 0 devices on non-zero exit, got %d", len(snap.Devices))
 	}

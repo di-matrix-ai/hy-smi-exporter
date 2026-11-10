@@ -18,6 +18,7 @@
 - 输出设备身份、温度、功耗、利用率、显存、时钟和 PCIe 指标；
 - 输出链路、健康、RAS、ECC、坏页、风扇和性能等级指标；
 - 提供 `/metrics` 和 `/healthz` 端点；
+- 提供 `hy_smi_up` 指标区分采集失败与正常的零设备结果；
 - 支持直接运行和 systemd 部署；
 - 提供 Linux `amd64`、`arm64` 二进制；
 - 首版不发布、不承诺 Docker、Docker Compose、Kubernetes 或容器镜像兼容性。
@@ -37,19 +38,18 @@
 | Linux amd64 | `<Release asset URL>` |
 | Linux arm64 | `<Release asset URL>` |
 | SHA-256 | `<checksums.txt URL>` |
-| 容器镜像 | 首版不发布 |
 | 源码 | `https://github.com/di-matrix-ai/hy-smi-exporter/tree/v0.1.0` |
 
 ## 安装和验证
 
 ```bash
 ./hy-smi-exporter \
-  --web.listen-address=:9393 \
+  --web.listen-address=:9584 \
   --hy-smi.path=/usr/bin/hy-smi \
   --hy-smi.timeout=5s
 
-curl http://127.0.0.1:9393/healthz
-curl http://127.0.0.1:9393/metrics | grep hy_smi_
+curl http://127.0.0.1:9584/healthz
+curl http://127.0.0.1:9584/metrics | grep hy_smi_
 ```
 
 安装前请阅读：
@@ -80,5 +80,5 @@ curl http://127.0.0.1:9393/metrics | grep hy_smi_
 
 - 一般问题：`https://github.com/di-matrix-ai/hy-smi-exporter/issues`；
 - 安全问题：按照 [`SECURITY.md`](../SECURITY.md) 私密反馈；
-- 鼎茂发布账号：`@di-matrix-ai`，联系邮箱 `esteric_shen@di-matrix.com`；
+- 鼎茂发布账号：`@estericShen`，联系邮箱 `esteric_shen@di-matrix.com`；
 - 海光技术协作者：`@zqwangadv`、`@kinglong08`。

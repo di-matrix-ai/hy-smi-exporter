@@ -8,7 +8,7 @@
 | --- | --- |
 | 项目仓库 | `TBD` |
 | 首版 Release | `TBD` |
-| 提交仓库 / 目录 | `prometheus/docs` exporter 列表，按提交时官方说明确认 |
+| 提交仓库 / 目录 | `prometheus/docs` 的 `docs/instrumenting/exporters.md`，hardware-related 区域 |
 | Pull Request URL | `TBD` |
 | 提交 commit | `TBD` |
 | 提交人 | `TBD` |
@@ -25,6 +25,8 @@
 - [ ] 兼容范围和已知限制明确；
 - [ ] PR 描述只陈述项目事实，不使用“官方认证”“官方支持”等表述；
 - [ ] 项目命名和链接与正式仓库一致。
+- [ ] 提交 commit 包含有效的 DCO `Signed-off-by`；
+- [ ] 默认端口已在仓库公开后完成冲突复核和必要登记。
 
 ## 3 审核意见及处理
 

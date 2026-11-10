@@ -105,7 +105,7 @@ hy-smi -a
 
 ```bash
 ./bin/hy-smi-exporter \
-  --web.listen-address=:9393 \
+  --web.listen-address=:9584 \
   --hy-smi.path=/usr/bin/hy-smi \
   --hy-smi.timeout=5s \
   --log.level=info
@@ -114,8 +114,8 @@ hy-smi -a
 检查服务：
 
 ```bash
-curl http://127.0.0.1:9393/healthz
-curl http://127.0.0.1:9393/metrics | grep hy_smi_
+curl http://127.0.0.1:9584/healthz
+curl http://127.0.0.1:9584/metrics | grep hy_smi_
 ```
 
 ### 5.2 systemd
@@ -124,11 +124,10 @@ curl http://127.0.0.1:9393/metrics | grep hy_smi_
 `examples/hy-smi-exporter.env`。确认宿主机已安装驱动及
 `hy-smi` / `hcu-smi` 后，将二进制安装到目标路径并按发行版注册服务。
 
-### 5.3 首版不支持的容器部署
+### 5.3 首版部署边界
 
-Docker、Docker Compose、Kubernetes 和容器镜像仅保留为后续适配底稿，
-不作为 `v0.1.0` 的兼容、测试或生产部署范围。后续如需要支持容器，必须
-另行确认厂商工具、运行库、设备节点、权限和基础镜像方案。
+Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v0.1.0` 的兼容、
+测试或生产部署范围，仓库不提供相关部署文件。
 
 ## 6 驱动升级后的处理
 
@@ -146,10 +145,10 @@ Docker、Docker Compose、Kubernetes 和容器镜像仅保留为后续适配底�
 | 现象 | 排查方法 |
 | --- | --- |
 | `hy-smi` 找不到 | 检查 PATH，或使用 `--hy-smi.path` 指定绝对路径 |
-| 设备数为 0 | 检查驱动模块、`/dev/kfd`、`/dev/dri` 和工具权限 |
+| `hy_smi_up` 为 0 | 检查日志、驱动、工具路径、权限和命令超时 |
+| `hy_smi_up` 为 1 但设备数为 0 | 检查驱动模块、设备节点和厂商工具输出 |
 | JSON 查询失败 | 检查工具版本，确认文本回退是否可用，并保留脱敏输出 |
 | 指标缺少 | 对照工具原始输出和兼容矩阵，确认字段是否由当前驱动提供 |
-| 容器内查询失败 | 容器不属于 `v0.1.0` 支持范围，请改用宿主机直接运行或 systemd |
 | 驱动安装失败 | 检查内核头文件、`kernel-devel`、GCC、CMake 和安装日志 |
 | 需要进程指标 | 当前 exporter 尚未提供进程指标，不能仅通过挂载 debugfs 获得 |
 

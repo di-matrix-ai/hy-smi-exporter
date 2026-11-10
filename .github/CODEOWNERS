@@ -1,3 +1,4 @@
-# Dingmao owns release and repository changes. Hygon collaborators review
-# changes involving device, driver, vendor-tool or metric compatibility.
-* @di-matrix-ai @zqwangadv @kinglong08
+# Interim owner while repository invitations and public collaboration
+# authorization are completed. Add Hygon reviewers only after their GitHub
+# access and review responsibility have been confirmed.
+* @estericShen

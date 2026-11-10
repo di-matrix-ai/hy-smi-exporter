@@ -2,9 +2,8 @@
 // `hcu-smi`) and parses its JSON or human-readable output into typed
 // Go structs.
 //
-// Best-effort: failures (missing binary, timeout, parse errors) are
-// logged at warn level and the backend silently contributes nothing
-// to that scrape. Callers must tolerate an empty device list.
+// Failures (missing binary, timeout, parse errors) are logged and returned
+// to the caller so the exporter can expose an explicit scrape health metric.
 //
 // Only read-only hy-smi options are invoked. No --set*/--rasinject/
 // --load*driver write operations are ever issued by this package.
@@ -20,6 +19,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,9 +28,9 @@ type Backend struct {
 	binary  string
 	timeout time.Duration
 
-	// missingLogged is set after the first "binary not found" warning
-	// so the log doesn't fill up if hy-smi never appears.
-	missingLogged bool
+	// missingLogged suppresses repeated "binary not found" warnings. Snapshot
+	// may be called concurrently by overlapping Prometheus scrapes.
+	missingLogged atomic.Bool
 }
 
 // New returns a Backend bound to the given binary path. binary may
@@ -137,18 +137,17 @@ type Snapshot struct {
 // Snapshot runs the read-only hy-smi query and returns the parsed
 // snapshot. Newer hy-smi versions reject --json with --showallinfo,
 // so a failed JSON parse falls back to parsing the text emitted by
-// `hy-smi -a`. On any failure the function returns an empty Snapshot
-// and a nil error — the caller simply sees zero devices.
-func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) Snapshot {
+// `hy-smi -a`. Failures are returned so callers can distinguish an unhealthy
+// backend from a healthy host with zero devices.
+func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) (Snapshot, error) {
 	if _, err := exec.LookPath(b.binary); err != nil {
-		if !b.missingLogged {
+		if !b.missingLogged.Swap(true) {
 			logger.Warn("hy-smi binary not found; backend disabled for this scrape",
 				"binary", b.binary)
-			b.missingLogged = true
 		}
-		return Snapshot{}
+		return Snapshot{}, fmt.Errorf("find hy-smi binary %q: %w", b.binary, err)
 	}
-	b.missingLogged = false
+	b.missingLogged.Store(false)
 
 	cctx, cancel := context.WithTimeout(ctx, b.timeout)
 	defer cancel()
@@ -157,9 +156,9 @@ func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) Snapshot {
 	out, err := b.run(cctx, "-a", "--json")
 	if err != nil {
 		logger.Debug("hy-smi -a --json failed; trying text output", "err", err)
-	} else if snap, parseErr := parse(out); parseErr == nil && len(snap.Devices) > 0 {
+	} else if snap, parseErr := parse(out); parseErr == nil {
 		b.enrichMemory(cctx, logger, &snap)
-		return snap
+		return snap, nil
 	} else if parseErr != nil {
 		logger.Debug("hy-smi JSON output unavailable; trying text output", "err", parseErr)
 	}
@@ -167,15 +166,15 @@ func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) Snapshot {
 	textOut, err := b.run(cctx, "-a")
 	if err != nil {
 		logCommandError(logger, "hy-smi -a", err)
-		return Snapshot{}
+		return Snapshot{}, fmt.Errorf("run hy-smi text query: %w", err)
 	}
 	snap, err := parseText(textOut)
 	if err != nil {
 		logger.Warn("hy-smi output parse error", "err", err)
-		return Snapshot{}
+		return Snapshot{}, fmt.Errorf("parse hy-smi text output: %w", err)
 	}
 	b.enrichMemory(cctx, logger, &snap)
-	return snap
+	return snap, nil
 }
 
 func (b *Backend) run(ctx context.Context, args ...string) ([]byte, error) {
@@ -418,7 +417,8 @@ func parseDevice(row map[string]any) Device {
 	d.MemUtilPct = pickFloatUnit(row, []string{"mem_util_pct"}, []string{"Memory Utilization (%)", "HCU memory use (%)"})
 	d.VRAMUtilPct = pickFloatUnit(row, []string{"vram_util_pct"}, []string{"VRAM Utilization (%)", "VRAM%"})
 
-	// hy-smi exposes memory in MiB; normalise to bytes.
+	// Normalized *_bytes fields are already bytes. Human-readable fields use
+	// MiB and must be converted exactly once.
 	d.VRAMTotalBytes = pickMemBytes(row, []string{"vram_total_bytes"}, []string{"Total VRAM (MiB)", "Memory Total (MiB)", "vram Total Memory (MiB)", "vis_vram Total Memory (MiB)"})
 	d.VRAMUsedBytes = pickMemBytes(row, []string{"vram_used_bytes"}, []string{"Used VRAM (MiB)", "Memory Used (MiB)", "vram Total Used Memory (MiB)", "vis_vram Total Used Memory (MiB)"})
 	d.VRAMAvailBytes = pickMemBytes(row, []string{"vram_available_bytes"}, []string{"Available VRAM (MiB)", "Memory Available (MiB)", "Available memory size (MiB)"})
@@ -493,14 +493,13 @@ func pickInt64(row map[string]any, paths ...[]string) int64 {
 	return 0
 }
 
-// pickMemBytes reads a memory quantity in MiB and returns bytes.
-// Falls back to a raw byte count if the value is already an integer.
-func pickMemBytes(row map[string]any, paths ...[]string) uint64 {
-	for _, path := range paths {
-		v := lookup(row, path)
-		if f, ok := toFloat(v); ok {
-			return uint64(f * 1024 * 1024)
-		}
+// pickMemBytes prefers normalized byte fields, then converts vendor MiB fields.
+func pickMemBytes(row map[string]any, byteKeys, mibKeys []string) uint64 {
+	if f, ok := toFloat(lookup(row, byteKeys)); ok {
+		return uint64(f)
+	}
+	if f, ok := toFloat(lookup(row, mibKeys)); ok {
+		return uint64(f * 1024 * 1024)
 	}
 	return 0
 }

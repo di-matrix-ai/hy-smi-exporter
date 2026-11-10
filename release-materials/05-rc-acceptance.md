@@ -26,8 +26,6 @@ Git commit：`TBD`
 | `go vet ./...` | `TBD` | CI 链接 |
 | Linux amd64 构建和启动 | `TBD` | 校验值 / 日志 |
 | Linux arm64 构建和启动 | `TBD` | 校验值 / 日志 |
-| 容器镜像 | 不适用：首版不发布 | 不纳入 v0.1.0 |
-| SBOM 和 provenance | 不适用：首版不发布容器 | 不纳入 v0.1.0 |
 | Release 归档内容检查 | `TBD` | 文件清单 |
 
 ## 3 真实设备和部署验证
@@ -38,8 +36,6 @@ Git commit：`TBD`
 | 兼容性矩阵只包含实测组合 | `TBD` | 文档链接 |
 | 指标语义经海光确认 | `TBD` | 确认记录 |
 | 直接运行 / systemd | `TBD` | 测试记录 |
-| Docker / Compose | 不适用：首版不支持 | 不纳入 v0.1.0 |
-| Kubernetes DaemonSet | 不适用：首版不支持 | 不纳入 v0.1.0 |
 | Prometheus 抓取和稳定性 | `TBD` | 测试记录 |
 
 ## 4 对外材料

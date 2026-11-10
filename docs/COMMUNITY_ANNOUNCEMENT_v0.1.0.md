@@ -53,6 +53,6 @@
 
 ## 联系方式
 
-- 鼎茂发布账号：`@di-matrix-ai`，联系邮箱 `esteric_shen@di-matrix.com`；
+- 鼎茂发布账号：`@estericShen`，联系邮箱 `esteric_shen@di-matrix.com`；
 - 海光技术协作者：王忠勤（`@zqwangadv`）、代金龙（`@kinglong08`）；
 - 安全问题反馈：`esteric_shen@di-matrix.com`。

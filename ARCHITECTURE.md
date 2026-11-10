@@ -10,7 +10,8 @@
 4. If the main query lacks memory data, the backend performs the supported
    read-only memory queries.
 5. Parsed device snapshots are converted to `hy_smi_*` metrics and returned to
-   Prometheus.
+   Prometheus. Collection failures emit `hy_smi_up 0` instead of being reported
+   as a healthy node with zero devices.
 
 ```text
 Prometheus
@@ -30,15 +31,15 @@ HTTP /metrics -> Collector -> Backend -> hy-smi / hcu-smi -> driver and device
 | Configuration | `internal/config/` | Flags and environment defaults |
 | Vendor command backend | `internal/hysmi/` | Command execution, timeout and parsing |
 | Prometheus collector | `internal/exporter/` | Metric descriptions and emission |
-| Deployment examples | `examples/` | Prometheus and systemd examples; container files are future adaptation drafts |
+| Deployment examples | `examples/` | Prometheus and systemd examples |
 
 ## Security boundary
 
 The exporter invokes read-only query commands and does not load drivers,
 update firmware, reset devices, inject RAS faults or change device settings.
-The vendor tool and its runtime libraries are not embedded in the project or
-container image. Their installation and licensing remain the responsibility of
-the deployment environment.
+The vendor tool and its runtime libraries are not embedded in the project.
+Their installation and licensing remain the responsibility of the deployment
+environment.
 
 ## Compatibility boundary
 

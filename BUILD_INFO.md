@@ -1,54 +1,36 @@
 # Build and Release Traceability
 
-This file is the release build record for `hy-smi-exporter`. The release owner
-must replace every `TBD` value for a tagged release. Development branches may
-retain this template.
+Official `hy-smi-exporter` binaries are built by the GitHub Actions release
+workflow from an annotated version tag. Release identity and evidence are
+resolved from immutable Git and GitHub records instead of being copied into
+this source file.
 
-## Release identity
-
-| Item | Value |
-| --- | --- |
-| Project | `hy-smi-exporter` |
-| Version / tag | `TBD` |
-| Git repository | `TBD` |
-| Git commit SHA | `TBD` |
-| Source archive SHA-256 | `TBD` |
-| Build date (UTC) | `TBD` |
-| Release owner | `TBD` |
-
-## Build environment
+## Build definition
 
 | Item | Value |
 | --- | --- |
-| Go version | `TBD` |
-| GoReleaser version | `TBD` |
-| CI provider and run URL | `TBD` |
-| Runner operating system | `TBD` |
+| Repository | `https://github.com/di-matrix-ai/hy-smi-exporter` |
+| Workflow | `.github/workflows/release.yml` |
+| Build tool | GoReleaser v2 |
 | Build command | `goreleaser release --clean` |
+| Supported artifacts | Linux `amd64` and Linux `arm64` archives |
 | CGO | `CGO_ENABLED=0` |
+| Checksums | `checksums.txt` attached to the same GitHub Release |
+| Release state | Created as draft; published manually after approval |
 
-## Release artifacts
+## Verification procedure
 
-| Artifact | Architecture | SHA-256 / digest | Verification result |
-| --- | --- | --- | --- |
-| Linux archive | `amd64` | `TBD` | `TBD` |
-| Linux archive | `arm64` | `TBD` | `TBD` |
-| GHCR image | multi-arch | 首版不发布 | 不适用 |
-| SBOM | SPDX / OCI | `TBD` | `TBD` |
-| Source archive | source | `TBD` | `TBD` |
+For a release tag such as `v0.1.0`:
 
-## Verification evidence
+1. Resolve the source commit with `git rev-list -n 1 v0.1.0`.
+2. Open the workflow run for that tag and verify dependency, format, race,
+   vet, native build and Linux cross-build checks.
+3. Download every draft Release asset and verify it against `checksums.txt`.
+4. Confirm the archive contains the license, notices, README files, metric,
+   installation and compatibility documentation.
+5. Record the tag, commit, workflow URL, checksums and verification result in
+   `release-materials/05-rc-acceptance.md` and
+   `release-materials/07-release-approval.md`.
+6. Publish the draft only after both records are complete and approved.
 
-| Check | Evidence | Result |
-| --- | --- | --- |
-| `go mod verify` | CI run URL / log | `TBD` |
-| Formatting | CI run URL / log | `TBD` |
-| `go test -race ./...` | CI run URL / log | `TBD` |
-| `go vet ./...` | CI run URL / log | `TBD` |
-| Linux amd64 build | CI run URL / log | `TBD` |
-| Linux arm64 build | CI run URL / log | `TBD` |
-| Container multi-arch build | 首版不执行 | 不适用 |
-| Real-device acceptance | `release-materials/05-rc-acceptance.md` | `TBD` |
-
-Release artifacts must be generated from the commit recorded above. Do not
-manually replace a binary after checksums or image digests have been recorded.
+Release artifacts must not be manually replaced after checksum verification.

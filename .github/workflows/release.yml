@@ -30,3 +30,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release remains draft
+        run: |
+          echo "GoReleaser created a draft release."
+          echo "Verify artifacts, checksums and approvals before publishing it manually."

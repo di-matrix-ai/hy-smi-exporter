@@ -9,15 +9,15 @@ driver changes and maintainer capacity.
 - Complete the first verified device, driver, firmware, DTK and vendor-tool
   compatibility matrix.
 - Stabilize JSON and text parsing against redacted real-device samples.
-- Validate Linux amd64 and arm64 binaries and the multi-architecture image.
+- Validate Linux amd64 and arm64 binaries.
 - Publish installation, metric semantics and known limitations.
 - Complete Prometheus exporter directory submission after the first release.
 
 ## Later candidates
 
 - Expand verified device and driver combinations through test evidence.
-- Reduce container privileges where the vendor runtime permits it.
-- Add a Prometheus Operator `ServiceMonitor` example.
+- Evaluate container deployment only after its vendor runtime, security and
+  support boundaries have been separately approved.
 - Evaluate a Grafana dashboard and Helm chart based on community demand.
 - Evaluate process-level and virtual-device metrics only after vendor interface,
   security and performance review.

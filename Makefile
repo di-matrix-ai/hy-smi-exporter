@@ -6,7 +6,7 @@ ldflags        := -X main.version=$(shell git describe --tags --always --dirty 2
 
 GOFLAGS        := -trimpath -ldflags "$(ldflags)"
 
-.PHONY: build test lint fmt docker vet release-check clean
+.PHONY: build test lint fmt vet release-check clean
 
 build:
 	go build $(GOFLAGS) -o bin/$(binary) ./cmd/$(binary)
@@ -22,11 +22,8 @@ vet:
 
 lint: vet
 
-docker:
-	docker build -t $(namespace)-exporter:latest .
-
 release-check:
-	./scripts/check-release-materials.sh
+	EXPECTED_MODULE=github.com/di-matrix-ai/hy-smi-exporter ./scripts/check-release-materials.sh
 
 clean:
 	rm -rf bin/

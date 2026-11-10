@@ -14,7 +14,6 @@ const envPrefix = "HY_SMI_EXPORTER_"
 
 // Config is the resolved runtime configuration.
 type Config struct {
-	Hostname    string
 	ListenAddr  string
 	MetricsPath string
 	LogLevel    string
@@ -25,8 +24,7 @@ type Config struct {
 // Default returns the zero-config with sensible defaults applied.
 func Default() Config {
 	return Config{
-		Hostname:    hostname(),
-		ListenAddr:  ":9393",
+		ListenAddr:  ":9584",
 		MetricsPath: "/metrics",
 		LogLevel:    "info",
 		BinaryPath:  "hy-smi",
@@ -37,7 +35,6 @@ func Default() Config {
 // FromEnv returns Default() overridden by HY_SMI_EXPORTER_* env vars.
 func FromEnv() Config {
 	c := Default()
-	c.Hostname = envOr("NODE_NAME", c.Hostname)
 	c.ListenAddr = envOr(envPrefix+"LISTEN_ADDR", c.ListenAddr)
 	c.MetricsPath = envOr(envPrefix+"METRICS_PATH", c.MetricsPath)
 	c.LogLevel = envOr(envPrefix+"LOG_LEVEL", c.LogLevel)
@@ -55,17 +52,6 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-func hostname() string {
-	if v, ok := os.LookupEnv("NODE_NAME"); ok && v != "" {
-		return v
-	}
-	h, err := os.Hostname()
-	if err != nil {
-		return "unknown"
-	}
-	return h
 }
 
 // LogLevelValue is a convenience for callers that want to validate

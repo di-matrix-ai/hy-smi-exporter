@@ -26,8 +26,7 @@ not a replacement for the license text distributed by each upstream project.
 - [ ] No dependency introduces a license incompatible with Apache-2.0
       distribution.
 - [ ] The release archive includes `LICENSE`, `NOTICE` and this file.
-- [ ] The container build publishes an SBOM and image provenance metadata.
-- [ ] The final SBOM or dependency inventory is archived with the release.
+- [ ] The final Go module dependency inventory is archived with the release evidence.
 - [ ] Dingmao's legal or open-source compliance owner has approved publication.
 
 Compliance owner: `TBD`  
@@ -36,4 +35,4 @@ Result: `TBD - approved / approved with conditions / rejected`
 
 The licenses shown here are based on upstream project metadata. Before the
 first public release, the compliance owner must verify them from the exact
-module source used by CI and retain the generated SBOM or equivalent evidence.
+module source used by CI and retain the dependency inventory or equivalent evidence.

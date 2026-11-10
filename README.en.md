@@ -17,12 +17,16 @@ Run it on a host where `hy-smi` or `hcu-smi` is available:
 
 ```bash
 ./bin/hy-smi-exporter \
-  --web.listen-address=:9393 \
+  --web.listen-address=:9584 \
   --hy-smi.path=/usr/bin/hy-smi
 ```
 
-Metrics are available at <http://localhost:9393/metrics> and the liveness
-endpoint is <http://localhost:9393/healthz>.
+Metrics are available at <http://localhost:9584/metrics> and the liveness
+endpoint is <http://localhost:9584/healthz>.
+
+`hy_smi_up` reports whether the most recent vendor-tool collection succeeded.
+Prometheus supplies the target `instance` label; the exporter does not create
+its own `instance` label.
 
 Tagged releases publish Linux `amd64` and `arm64` archives. The first release
 does not publish or support a container image.
@@ -55,8 +59,8 @@ The exporter invokes only read-only commands. It never uses `--set*`,
 ## Deployment examples
 
 See the [`examples/`](examples/) directory for systemd, environment variables,
-and Prometheus discovery examples. Docker Compose and Kubernetes files are
-retained as future adaptation drafts and are not supported in `v0.1.0`.
+and Prometheus discovery examples. Container deployment files are not included
+because container scenarios are outside the `v0.1.0` support scope.
 The Chinese README contains the complete option and metric reference:
 [`README.md`](README.md).
 

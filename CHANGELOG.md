@@ -11,8 +11,8 @@ and releases use [Semantic Versioning](https://semver.org/).
 
 - Community contribution, security, and release documentation.
 - Automated test, vet, build, and tagged release workflows.
-- Automated publication of versioned Linux artifacts; container publication is
-  reserved for a later compatibility scope.
+- Draft publication of versioned Linux artifacts with manual approval before
+  the GitHub Release becomes public.
 
 ## [0.1.0] - Unreleased
 

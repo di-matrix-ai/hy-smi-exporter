@@ -64,7 +64,6 @@ func main() {
 	// Re-resolve config from flags so the collector sees the final
 	// values.
 	finalCfg := config.Config{
-		Hostname:    cfg.Hostname,
 		ListenAddr:  *listenAddr,
 		MetricsPath: *metricsPath,
 		LogLevel:    *logLevel,
@@ -76,11 +75,7 @@ func main() {
 	registry.MustRegister(
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),
-		exporter.NewCollector(
-			finalCfg,
-			hysmi.New(finalCfg.BinaryPath, finalCfg.Timeout),
-			logger,
-		),
+		exporter.NewCollector(hysmi.New(finalCfg.BinaryPath, finalCfg.Timeout), logger),
 	)
 
 	mux := http.NewServeMux()
@@ -116,7 +111,6 @@ func main() {
 	go func() {
 		logger.Info("hy-smi-exporter listening",
 			"addr", *listenAddr,
-			"hostname", finalCfg.Hostname,
 			"binary", finalCfg.BinaryPath,
 			"timeout", finalCfg.Timeout.String(),
 		)

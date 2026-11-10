@@ -42,7 +42,7 @@ checksum:
   name_template: 'checksums.txt'
 
 release:
-  draft: false
+  draft: true
   prerelease: auto
 
 changelog:

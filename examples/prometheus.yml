@@ -8,12 +8,6 @@ scrape_configs:
       # Use the host portion of the address as the instance label so
       # dashboards show the node name, not ip:port.
       - source_labels: [__address__]
-        regex: '(.*):9393'
+        regex: '(.*):9584'
         target_label: instance
         replacement: '${1}'
-    metric_relabel_configs:
-      # Drop the per-PID fan label series to keep cardinality low on
-      # headless dashboards — enable if you want per-fan series.
-      - source_labels: [fan]
-        regex: '0'
-        action: keep
