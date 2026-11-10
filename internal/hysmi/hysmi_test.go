@@ -213,7 +213,7 @@ func TestParseText(t *testing.T) {
 }
 
 func TestBackendWithTextFallback(t *testing.T) {
-	stub := writeStubScript(t, "#!/bin/sh\ncat <<'EOF'\n"+
+	stub := writeStubScript(t, "#!/bin/sh\n/bin/cat <<'EOF'\n"+
 		"Driver Version: 6.3.28-V1.3.0b\n"+
 		"HCU[0] : Device ID: 0x6370\n"+
 		"HCU[0] : Temperature (Sensor edge) (C): 50.0\n"+
@@ -316,7 +316,7 @@ func loadFixture(t *testing.T, name string) []byte {
 func writeStub(t *testing.T, fixture string) string {
 	t.Helper()
 	data := loadFixture(t, fixture)
-	return writeStubScript(t, "#!/bin/sh\ncat <<'EOF'\n"+string(data)+"\nEOF\n")
+	return writeStubScript(t, "#!/bin/sh\n/bin/cat <<'EOF'\n"+string(data)+"\nEOF\n")
 }
 
 func writeStubScript(t *testing.T, body string) string {

@@ -115,7 +115,7 @@ func assertMetricValue(t *testing.T, families map[string]*dto.MetricFamily, name
 func writeExporterStub(t *testing.T, output string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "hy-smi")
-	body := "#!/bin/sh\ncat <<'EOF'\n" + output + "\nEOF\n"
+	body := "#!/bin/sh\n/bin/cat <<'EOF'\n" + output + "\nEOF\n"
 	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 		t.Fatalf("write stub: %v", err)
 	}
