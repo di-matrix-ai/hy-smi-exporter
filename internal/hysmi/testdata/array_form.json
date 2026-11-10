@@ -1,0 +1,27 @@
+[
+  {
+    "Driver Version": "6.2.22",
+    "Host Name": "dcu-node-02"
+  },
+  {
+    "Device Index": 0,
+    "HCU": "HCU",
+    "Device ID": "0x1000",
+    "Temperature (C)": "37.0C",
+    "Average Graphics Package Power (W)": "161.0W",
+    "HCU Utilization (%)": "100.0%",
+    "VRAM Utilization (%)": "80%",
+    "Total VRAM (MiB)": 65536,
+    "Used VRAM (MiB)": 52428,
+    "SCLK (MHz)": "1700.0MHz",
+    "MCLK (MHz)": "1000.0MHz",
+    "Health": "Warning",
+    "Mode": "Compute",
+    "RAS Error Count": 2,
+    "ECC Correctable Errors": 2,
+    "ECC Uncorrectable Errors": 0,
+    "Retired Pages": 1,
+    "Pending Pages": 1,
+    "Performance Level": "manual"
+  }
+]

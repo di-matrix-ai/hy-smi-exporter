@@ -1,0 +1,21 @@
+[Unit]
+Description=Hygon DCU Prometheus Exporter
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/data/exporter/hy-smi-exporter
+ConditionPathExists=/opt/hyhal/bin/hy-smi
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/data/exporter
+EnvironmentFile=/data/exporter/hy-smi-exporter.env
+ExecStart=/data/exporter/hy-smi-exporter
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
