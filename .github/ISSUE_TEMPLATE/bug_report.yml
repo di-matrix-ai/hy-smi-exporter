@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible problem with the exporter
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove serial numbers, hostnames, PCI addresses, and other sensitive data.
+        Do not report security vulnerabilities here; follow SECURITY.md instead.
+  - type: input
+    id: version
+    attributes:
+      label: Exporter version or commit
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, kernel, driver, Go, and hy-smi versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or redacted command output
+      render: text
