@@ -13,7 +13,7 @@
 - 计划安装的驱动、固件和 DTK 版本；
 - 计划使用的 `hy-smi` / `hcu-smi` 版本；
 - 首版部署方式：直接运行或 systemd。Docker、Docker Compose 和 Kubernetes
-  不属于 `v0.1.0` 兼容范围。
+  不属于 `v1.0.0` 兼容范围。
 
 驱动、DTK 和硬件的参考对应关系见 [compatibility.md](compatibility.md)。
 
@@ -48,7 +48,7 @@ apt install -y linux-headers-$(uname -r) linux-modules-extra-$(uname -r)
 
 ## 3 安装海光驱动
 
-驱动安装包应从海光官方或双方确认的授权渠道获取。不要将驱动安装包、固件或厂商工具二进制提交到 exporter 仓库。
+驱动安装包应从海光公开渠道或用户依法获得的软件交付渠道获取。不要将驱动安装包、固件或厂商工具二进制提交到 exporter 仓库。
 
 ```bash
 # 给安装包增加执行权限
@@ -126,7 +126,7 @@ curl http://127.0.0.1:9584/metrics | grep hy_smi_
 
 ### 5.3 首版部署边界
 
-Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v0.1.0` 的兼容、
+Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v1.0.0` 的兼容、
 测试或生产部署范围，仓库不提供相关部署文件。
 
 ## 6 驱动升级后的处理
@@ -150,7 +150,7 @@ Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v0.1.0` 的兼容
 | JSON 查询失败 | 检查工具版本，确认文本回退是否可用，并保留脱敏输出 |
 | 指标缺少 | 对照工具原始输出和兼容矩阵，确认字段是否由当前驱动提供 |
 | 驱动安装失败 | 检查内核头文件、`kernel-devel`、GCC、CMake 和安装日志 |
-| 需要进程指标 | 当前 exporter 尚未提供进程指标，不能仅通过挂载 debugfs 获得 |
+| 需要 Exporter 进程指标 | 已通过 Prometheus Go 和 process 标准采集器提供；设备进程或 vHCU 维度指标暂未提供 |
 
 ## 8 安全要求
 
