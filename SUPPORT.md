@@ -14,11 +14,13 @@ on-site services require a separate agreement with the responsible party.
 
 - Dingmao owns the public repository, release process, code review and
   community issue triage.
-- Hygon participates as technical collaborator for device, driver,
-  `hy-smi` / `hcu-smi` compatibility and metric semantics.
+- Device-vendor technical personnel may participate as individual technical
+  collaborators or community contributors for driver, `hy-smi` / `hcu-smi`
+  compatibility and metric semantics. Their participation does not represent
+  vendor authorization, certification or a support commitment.
 - Hardware warranty, driver distribution, firmware, DTK and vendor tool
   licensing remain outside this repository.
-- `v0.1.0` supports direct host execution and systemd only. Docker, Docker
+- `v1.0.0` supports direct host execution and systemd only. Docker, Docker
   Compose, Kubernetes and container images are explicitly outside the first
   release compatibility scope.
 - Prometheus directory inclusion is a community listing and is not an

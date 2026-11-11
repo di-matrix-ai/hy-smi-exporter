@@ -14,7 +14,7 @@ and releases use [Semantic Versioning](https://semver.org/).
 - Draft publication of versioned Linux artifacts with manual approval before
   the GitHub Release becomes public.
 
-## [0.1.0] - Unreleased
+## [1.0.0] - 2026-11-13
 
 ### Added
 

@@ -48,10 +48,11 @@ Planned community work is tracked in [`ROADMAP.md`](ROADMAP.md).
 ## Requirements
 
 - Go 1.23+ to build.
-- A driver, firmware, DTK, and `hy-smi` / `hcu-smi` combination listed in the
-  verified compatibility matrix.
+- A supported vendor driver and a `hy-smi` / `hcu-smi` command interface whose
+  output remains compatible with the current parser. The compatibility matrix
+  distinguishes interface-based support from real-device verification.
 - A host installation of `hy-smi` or `hcu-smi`; container deployment is outside
-  the compatibility scope of `v0.1.0`.
+  the compatibility scope of `v1.0.0`.
 
 The exporter invokes only read-only commands. It never uses `--set*`,
 `--rasinject`, `--load*driver`, or `--reset*` options.
@@ -60,7 +61,7 @@ The exporter invokes only read-only commands. It never uses `--set*`,
 
 See the [`examples/`](examples/) directory for systemd, environment variables,
 and Prometheus discovery examples. Container deployment files are not included
-because container scenarios are outside the `v0.1.0` support scope.
+because container scenarios are outside the `v1.0.0` support scope.
 The Chinese README contains the complete option and metric reference:
 [`README.md`](README.md).
 

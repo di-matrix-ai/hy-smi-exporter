@@ -17,22 +17,13 @@ not a replacement for the license text distributed by each upstream project.
 | `golang.org/x/sys` | `v0.22.0` | Indirect dependency | BSD-3-Clause |
 | `google.golang.org/protobuf` | `v1.34.2` | Indirect dependency | BSD-3-Clause |
 
-## Release compliance checklist
+## Release verification
 
-- [ ] `go.mod` and `go.sum` match the release commit.
-- [ ] CI has completed `go mod verify`.
-- [ ] License identifiers above have been checked against the exact downloaded
-      module versions.
-- [ ] No dependency introduces a license incompatible with Apache-2.0
-      distribution.
-- [ ] The release archive includes `LICENSE`, `NOTICE` and this file.
-- [ ] The final Go module dependency inventory is archived with the release evidence.
-- [ ] Dingmao's legal or open-source compliance owner has approved publication.
+The release workflow verifies the module checksum database with `go mod
+verify`. The release archive includes `LICENSE`, `NOTICE` and this file. The
+licenses shown here are based on the upstream project metadata for the exact
+versions declared by `go.mod` and `go.sum`.
 
-Compliance owner: `TBD`  
-Review date: `TBD`  
-Result: `TBD - approved / approved with conditions / rejected`
-
-The licenses shown here are based on upstream project metadata. Before the
-first public release, the compliance owner must verify them from the exact
-module source used by CI and retain the dependency inventory or equivalent evidence.
+Internal release approval and dependency-review evidence are retained by
+Shanghai Ding Mao Information Technology Co., Ltd. and are not included in
+this public notice file.

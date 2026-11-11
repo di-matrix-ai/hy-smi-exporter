@@ -44,7 +44,8 @@ environment.
 ## Compatibility boundary
 
 Parser unit tests protect known output shapes, but they do not replace
-real-device verification. A hardware, driver, firmware, DTK or vendor-tool
-upgrade may change fields, units, types or enumerations. Only combinations in
-`docs/compatibility.md` marked as verified are part of the published support
-statement.
+real-device verification. The exporter supports devices through the common
+`hy-smi` / `hcu-smi` command interface rather than hardware-specific access.
+A device is in scope when its vendor driver supports it and the command output
+remains compatible with the current parser. `docs/compatibility.md` separately
+records interface-based support and combinations verified on real devices.

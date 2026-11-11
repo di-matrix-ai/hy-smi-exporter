@@ -20,9 +20,9 @@ this source file.
 
 ## Verification procedure
 
-For a release tag such as `v0.1.0`:
+For a release tag such as `v1.0.0`:
 
-1. Resolve the source commit with `git rev-list -n 1 v0.1.0`.
+1. Resolve the source commit with `git rev-list -n 1 v1.0.0`.
 2. Open the workflow run for that tag and verify dependency, format, race,
    vet, native build and Linux cross-build checks.
 3. Download every draft Release asset and verify it against `checksums.txt`.

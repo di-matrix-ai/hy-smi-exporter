@@ -1,6 +1,6 @@
 # hy-smi-exporter
 
-面向海光 DCU / HCU 加速器的 Prometheus 指标采集器，实际支持范围以 [兼容性矩阵](docs/compatibility.md) 中完成真实设备验证的组合为准。
+面向海光 DCU / HCU 加速器的 Prometheus 指标采集器。项目基于驱动提供的通用 `hy-smi` / `hcu-smi` 命令接口适配设备；命令接口保持兼容时可共用当前采集实现，具体支持范围和真实设备验证状态见 [兼容性矩阵](docs/compatibility.md)。
 通过只读命令 `hy-smi -a --json` 采集每张卡的运行数据；对于不支持该 JSON 组合参数的驱动版本，自动回退到 `hy-smi -a` 文本输出，以 `hy_smi_` 前缀暴露在 `/metrics` 端点。
 
 参考 [reloaded/prometheus_consumer_amdgpu_exporter](https://github.com/reloaded/prometheus_consumer_amdgpu_exporter)（AMD）和 [NVIDIA/dcgm-exporter](https://github.com/NVIDIA/dcgm-exporter)（NVIDIA）的架构，采用"每次抓取执行主查询 + prometheus.Collector"模式；当主查询不含显存统计时，按需补充只读显存查询。
@@ -89,7 +89,7 @@ hy-smi --showmemavailable --json      # 仅当主查询缺少显存统计时
 
 - Go 1.23+（编译时需要）
 - `hy-smi` 或 `hcu-smi` 命令可执行（在 `$PATH` 中或通过 `--hy-smi.path` 指定）
-- 驱动、固件、DTK 和 `hy-smi` / `hcu-smi` 版本以 [兼容性矩阵](docs/compatibility.md) 中双方实际验证的组合为准
+- 目标设备应由对应驱动正常支持，且 `hy-smi` / `hcu-smi` 命令输出与当前解析实现兼容；具体支持范围和实测状态见 [兼容性矩阵](docs/compatibility.md)
 - 首版支持直接运行或 systemd；容器、Docker Compose 和 Kubernetes 不属于首版兼容范围
 
 ---
@@ -153,7 +153,7 @@ make fmt
 
 ### 首版不支持的部署方式
 
-Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v0.1.0` 的兼容或
+Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v1.0.0` 的兼容或
 发布范围，仓库不提供相关部署文件。
 
 ---

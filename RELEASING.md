@@ -13,13 +13,13 @@ This project uses semantic version tags and GoReleaser.
 4. Record the commit, build environment and CI run in `BUILD_INFO.md`; complete
    the dependency compliance review in `THIRD_PARTY_NOTICES.md`.
 5. Complete the real-device report, compatibility matrix, metric semantics,
-   publication authorization and all pre-artifact RC checks under
+   collaboration/publication boundaries and all pre-artifact RC checks under
    `release-materials/`. Keep the repository private at this stage.
 6. Commit the release changes and create an annotated tag, for example:
 
    ```bash
-   git tag -a v0.1.0 -m "Release v0.1.0"
-   git push origin main v0.1.0
+   git tag -a v1.0.0 -m "Release v1.0.0"
+   git push origin main v1.0.0
    ```
 
 7. The tag workflow creates a draft GitHub Release with Linux `amd64`, Linux
