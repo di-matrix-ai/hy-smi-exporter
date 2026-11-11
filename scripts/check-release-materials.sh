@@ -17,8 +17,8 @@ THIRD_PARTY_NOTICES.md
 BUILD_INFO.md
 docs/installation.md
 docs/compatibility.md
-docs/RELEASE_NOTES_v0.1.0.md
-docs/COMMUNITY_ANNOUNCEMENT_v0.1.0.md
+docs/RELEASE_NOTES_v1.0.0.md
+docs/COMMUNITY_ANNOUNCEMENT_v1.0.0.md
 metric.md
 release-materials/00-发布材料总目录.md
 release-materials/07-release-approval.md
@@ -41,8 +41,8 @@ SECURITY.md
 THIRD_PARTY_NOTICES.md
 BUILD_INFO.md
 docs/compatibility.md
-docs/RELEASE_NOTES_v0.1.0.md
-docs/COMMUNITY_ANNOUNCEMENT_v0.1.0.md
+docs/RELEASE_NOTES_v1.0.0.md
+docs/COMMUNITY_ANNOUNCEMENT_v1.0.0.md
 "
 
 placeholder_pattern='TBD|<YYYY-MM-DD>|<company-org>|<company-legal-name>|<GitHub account>|<姓名 / GitHub 账号>|<安全反馈渠道>|<待填写>|<Release asset URL>|COMPANY_GITHUB_MAINTAINER|待填写|legal entity name to be confirmed'
