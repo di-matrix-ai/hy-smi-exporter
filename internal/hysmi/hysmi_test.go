@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 // TestParseMapForm covers the map-of-cards shape emitted by the
