@@ -11,7 +11,7 @@
 - 当前内核版本；
 - CPU 架构；
 - 计划安装的驱动、固件和 DTK 版本；
-- 计划使用的 `hy-smi` / `hcu-smi` 版本；
+- 计划使用的 `hy-smi` 版本；
 - 首版部署方式：直接运行或 systemd。Docker、Docker Compose 和 Kubernetes
   不属于 `v1.0.0` 兼容范围。
 
@@ -86,18 +86,18 @@ lsmod | grep -E 'hydcu|hycu'
 
 ```bash
 ls -l /dev/kfd /dev/dri 2>/dev/null
-which hy-smi || which hcu-smi
-hy-smi --version 2>/dev/null || hcu-smi --version
+which hy-smi
+hy-smi --version
 ```
 
 在正式测试前执行只读查询：
 
 ```bash
-hy-smi -a --json
-hy-smi -a
+hy-smi --json
+hy-smi
+hy-smi --showuniqueid
+hy-smi --healthcheck
 ```
-
-如果实际工具名称为 `hcu-smi`，将命令替换为对应工具；也可以通过 exporter 参数指定工具路径。
 
 ## 5 安装和运行 Exporter
 
@@ -108,6 +108,7 @@ hy-smi -a
   --web.listen-address=:9584 \
   --hy-smi.path=/usr/bin/hy-smi \
   --hy-smi.timeout=5s \
+  --hy-smi.collect-1s-stats=false \
   --log.level=info
 ```
 
@@ -122,7 +123,7 @@ curl http://127.0.0.1:9584/metrics | grep hy_smi_
 
 仓库提供 `examples/hy-smi-exporter.service` 和
 `examples/hy-smi-exporter.env`。确认宿主机已安装驱动及
-`hy-smi` / `hcu-smi` 后，将二进制安装到目标路径并按发行版注册服务。
+`hy-smi` 后，将二进制安装到目标路径并按发行版注册服务。
 
 ### 5.3 首版部署边界
 
@@ -131,10 +132,10 @@ Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v1.0.0` 的兼容
 
 ## 6 驱动升级后的处理
 
-升级驱动、固件、DTK 或 `hy-smi` / `hcu-smi` 后，不应直接认定 exporter 继续兼容。应按以下顺序处理：
+升级驱动、固件、DTK 或 `hy-smi` 后，不应直接认定 exporter 继续兼容。应按以下顺序处理：
 
 1. 记录升级前后的版本信息；
-2. 执行 `hy-smi -a --json` 和 `hy-smi -a` 并保存脱敏样例；
+2. 执行 `hy-smi --json`、`hy-smi`、`hy-smi --showuniqueid` 和 `hy-smi --healthcheck` 并保存脱敏样例；
 3. 对照 [compatibility.md](compatibility.md) 检查字段、单位和枚举；
 4. 执行厂商测试包中的冒烟测试和完整测试清单；
 5. 必要时补充解析 fixture、单元测试和兼容性矩阵；
@@ -149,6 +150,8 @@ Docker、Docker Compose、Kubernetes 和容器镜像不属于 `v1.0.0` 的兼容
 | `hy_smi_up` 为 1 但设备数为 0 | 检查驱动模块、设备节点和厂商工具输出 |
 | JSON 查询失败 | 检查工具版本，确认文本回退是否可用，并保留脱敏输出 |
 | 指标缺少 | 对照工具原始输出和兼容矩阵，确认字段是否由当前驱动提供 |
+| `unique_id` 或 `health` 为空 | 检查 `--showuniqueid`、`--healthcheck` 的原始输出并提供脱敏样例 |
+| 利用率或带宽指标未出现 | 1 秒统计项默认关闭；按需启用 `--hy-smi.collect-1s-stats=true`，多卡节点同时关注采集耗时 |
 | 驱动安装失败 | 检查内核头文件、`kernel-devel`、GCC、CMake 和安装日志 |
 | 需要 Exporter 进程指标 | 已通过 Prometheus Go 和 process 标准采集器提供；设备进程或 vHCU 维度指标暂未提供 |
 
