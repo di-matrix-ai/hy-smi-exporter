@@ -1,5 +1,5 @@
-// Package hysmi is the shell-out backend that runs `hy-smi` (or
-// `hcu-smi`) and parses its JSON or human-readable output into typed
+// Package hysmi is the shell-out backend that runs `hy-smi` and parses
+// its JSON or human-readable output into typed
 // Go structs.
 //
 // Failures (missing binary, timeout, parse errors) are logged and returned
@@ -23,10 +23,11 @@ import (
 	"time"
 )
 
-// Backend wraps the hy-smi / hcu-smi binary.
+// Backend wraps the hy-smi binary.
 type Backend struct {
-	binary  string
-	timeout time.Duration
+	binary                string
+	timeout               time.Duration
+	collectOneSecondStats bool
 
 	// missingLogged suppresses repeated "binary not found" warnings. Snapshot
 	// may be called concurrently by overlapping Prometheus scrapes.
@@ -36,14 +37,24 @@ type Backend struct {
 // New returns a Backend bound to the given binary path. binary may
 // be an absolute path or a name to look up via $PATH. An empty value
 // defaults to "hy-smi".
-func New(binary string, timeout time.Duration) *Backend {
+func New(binary string, timeout time.Duration, collectOneSecondStats bool) *Backend {
 	if binary == "" {
 		binary = "hy-smi"
 	}
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	return &Backend{binary: binary, timeout: timeout}
+	return &Backend{
+		binary:                binary,
+		timeout:               timeout,
+		collectOneSecondStats: collectOneSecondStats,
+	}
+}
+
+// CollectOneSecondStats reports whether detailed utilization and bandwidth
+// metrics are enabled for this backend.
+func (b *Backend) CollectOneSecondStats() bool {
+	return b.collectOneSecondStats
 }
 
 // Device is the per-card payload returned by hy-smi --json.
@@ -135,10 +146,10 @@ type Snapshot struct {
 }
 
 // Snapshot runs the read-only hy-smi query and returns the parsed
-// snapshot. Newer hy-smi versions reject --json with --showallinfo,
-// so a failed JSON parse falls back to parsing the text emitted by
-// `hy-smi -a`. Failures are returned so callers can distinguish an unhealthy
-// backend from a healthy host with zero devices.
+// snapshot. The default query uses the lightweight summary view. Detailed
+// one-second statistics are collected with -a only when explicitly enabled.
+// Failures are returned so callers can distinguish an unhealthy backend from
+// a healthy host with zero devices.
 func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) (Snapshot, error) {
 	if _, err := exec.LookPath(b.binary); err != nil {
 		if !b.missingLogged.Swap(true) {
@@ -149,23 +160,44 @@ func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) (Snapshot, 
 	}
 	b.missingLogged.Store(false)
 
-	cctx, cancel := context.WithTimeout(ctx, b.timeout)
-	defer cancel()
+	jsonArgs := []string{"--json"}
+	textArgs := []string{}
+	commandName := "hy-smi"
+	if b.collectOneSecondStats {
+		jsonArgs = []string{"-a", "--json"}
+		textArgs = []string{"-a"}
+		commandName = "hy-smi -a"
+	}
 
 	// Only read-only flags. Never --set*/--rasinject/--load*driver.
-	out, err := b.run(cctx, "-a", "--json")
+	snap, err := b.queryRequired(ctx, logger, commandName, jsonArgs, textArgs)
 	if err != nil {
-		logger.Debug("hy-smi -a --json failed; trying text output", "err", err)
+		return Snapshot{}, err
+	}
+	b.enrichIdentityAndHealth(ctx, logger, &snap)
+	b.enrichMemory(ctx, logger, &snap)
+	return snap, nil
+}
+
+func (b *Backend) run(ctx context.Context, args ...string) ([]byte, error) {
+	cctx, cancel := context.WithTimeout(ctx, b.timeout)
+	defer cancel()
+	return exec.CommandContext(cctx, b.binary, args...).Output() //nolint:gosec // binary path is operator-controlled
+}
+
+func (b *Backend) queryRequired(ctx context.Context, logger *slog.Logger, commandName string, jsonArgs, textArgs []string) (Snapshot, error) {
+	out, err := b.run(ctx, jsonArgs...)
+	if err != nil {
+		logger.Debug(commandName+" --json failed; trying text output", "err", err)
 	} else if snap, parseErr := parse(out); parseErr == nil {
-		b.enrichMemory(cctx, logger, &snap)
 		return snap, nil
-	} else if parseErr != nil {
+	} else {
 		logger.Debug("hy-smi JSON output unavailable; trying text output", "err", parseErr)
 	}
 
-	textOut, err := b.run(cctx, "-a")
+	textOut, err := b.run(ctx, textArgs...)
 	if err != nil {
-		logCommandError(logger, "hy-smi -a", err)
+		logCommandError(logger, commandName, err)
 		return Snapshot{}, fmt.Errorf("run hy-smi text query: %w", err)
 	}
 	snap, err := parseText(textOut)
@@ -173,12 +205,70 @@ func (b *Backend) Snapshot(ctx context.Context, logger *slog.Logger) (Snapshot, 
 		logger.Warn("hy-smi output parse error", "err", err)
 		return Snapshot{}, fmt.Errorf("parse hy-smi text output: %w", err)
 	}
-	b.enrichMemory(cctx, logger, &snap)
 	return snap, nil
 }
 
-func (b *Backend) run(ctx context.Context, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, b.binary, args...).Output() //nolint:gosec // binary path is operator-controlled
+func (b *Backend) enrichIdentityAndHealth(ctx context.Context, logger *slog.Logger, snap *Snapshot) {
+	if needsUniqueID(*snap) {
+		b.enrichOptional(ctx, logger, snap, "unique ID", "--showuniqueid")
+	}
+	if needsHealth(*snap) {
+		b.enrichOptional(ctx, logger, snap, "health", "--healthcheck")
+	}
+}
+
+func (b *Backend) enrichOptional(ctx context.Context, logger *slog.Logger, snap *Snapshot, name string, args ...string) {
+	jsonArgs := append(append([]string{}, args...), "--json")
+	out, err := b.run(ctx, jsonArgs...)
+	if err == nil {
+		if extra, parseErr := parse(out); parseErr == nil && len(extra.Devices) > 0 {
+			mergeSnapshot(snap, extra)
+			if optionalQueryComplete(name, *snap) {
+				return
+			}
+		}
+	}
+
+	out, err = b.run(ctx, args...)
+	if err != nil {
+		logger.Debug("optional hy-smi query failed", "query", name, "args", args, "err", err)
+		return
+	}
+	extra, err := parseText(out)
+	if err != nil {
+		logger.Debug("optional hy-smi text parse failed", "query", name, "args", args, "err", err)
+		return
+	}
+	mergeSnapshot(snap, extra)
+}
+
+func optionalQueryComplete(name string, snap Snapshot) bool {
+	switch name {
+	case "unique ID":
+		return !needsUniqueID(snap)
+	case "health":
+		return !needsHealth(snap)
+	default:
+		return true
+	}
+}
+
+func needsUniqueID(snap Snapshot) bool {
+	for _, d := range snap.Devices {
+		if d.UniqueID == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func needsHealth(snap Snapshot) bool {
+	for _, d := range snap.Devices {
+		if d.Health == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func logCommandError(logger *slog.Logger, command string, err error) {
@@ -243,6 +333,22 @@ func mergeSnapshot(dst *Snapshot, src Snapshot) {
 }
 
 func mergeDevice(dst, src *Device) {
+	mergeString := func(target *string, source string) {
+		if *target == "" {
+			*target = source
+		}
+	}
+	mergeString(&dst.HCU, src.HCU)
+	mergeString(&dst.DeviceID, src.DeviceID)
+	mergeString(&dst.UniqueID, src.UniqueID)
+	mergeString(&dst.Serial, src.Serial)
+	mergeString(&dst.ProductName, src.ProductName)
+	mergeString(&dst.PartNumber, src.PartNumber)
+	mergeString(&dst.VBIOSVersion, src.VBIOSVersion)
+	mergeString(&dst.DriverVersion, src.DriverVersion)
+	mergeString(&dst.Bus, src.Bus)
+	mergeString(&dst.Health, src.Health)
+	mergeString(&dst.Mode, src.Mode)
 	if dst.VRAMTotalBytes == 0 {
 		dst.VRAMTotalBytes = src.VRAMTotalBytes
 	}
@@ -379,7 +485,7 @@ func parseDevice(row map[string]any) Device {
 		Index:         int(pickInt64(row, []string{"device_index"}, []string{"Device Index"})),
 		HCU:           pickString(row, []string{"hcu"}, []string{"HCU"}),
 		DeviceID:      pickString(row, []string{"device_id"}, []string{"Device ID"}),
-		UniqueID:      pickString(row, []string{"unique_id"}, []string{"Unique ID"}),
+		UniqueID:      pickString(row, []string{"unique_id"}, []string{"Unique ID", "UniqueID", "UUID", "uuid"}),
 		Serial:        pickString(row, []string{"serial"}, []string{"Serial Number"}),
 		ProductName:   pickString(row, []string{"product_name"}, []string{"Product Name", "SKU", "Market Name", "Card Series"}),
 		PartNumber:    pickString(row, []string{"part_number"}, []string{"Part Number"}),
@@ -391,7 +497,7 @@ func parseDevice(row map[string]any) Device {
 		PerfState:     pickString(row, []string{"perf_state"}, []string{"Performance State"}),
 		FDRReason:     pickString(row, []string{"fdr_reason"}, []string{"Frequency Change Reason"}),
 		XHCLStatus:    pickString(row, []string{"xhcl_status"}, []string{"xhcl Status", "XHCL Status"}),
-		Health:        pickString(row, []string{"health"}, []string{"Health", "Health Status"}),
+		Health:        pickString(row, []string{"health"}, []string{"Health", "Health Status", "Health State", "Health Check", "Device Health"}),
 		Mode:          pickString(row, []string{"mode"}, []string{"Mode"}),
 	}
 
@@ -645,6 +751,10 @@ func parseText(raw []byte) (Snapshot, error) {
 		switch strings.ToLower(strings.TrimSpace(key)) {
 		case "device id":
 			d.DeviceID = strings.TrimSpace(value)
+		case "unique id", "uniqueid", "uuid":
+			d.UniqueID = strings.TrimSpace(value)
+		case "health", "health status", "health state", "health check", "device health":
+			d.Health = strings.TrimSpace(value)
 		case "vbios version":
 			d.VBIOSVersion = strings.TrimSpace(value)
 		case "temperature (sensor edge) (c)":
