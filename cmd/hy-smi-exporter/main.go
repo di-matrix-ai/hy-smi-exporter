@@ -44,13 +44,13 @@ func main() {
 	cfg := config.FromEnv()
 
 	var (
-		listenAddr           = flag.String("web.listen-address", cfg.ListenAddr, "Address to listen on for /metrics.")
-		metricsPath          = flag.String("web.telemetry-path", cfg.MetricsPath, "Path under which metrics are exposed.")
-		logLevel             = flag.String("log.level", cfg.LogLevel, "Log level: debug, info, warn, error.")
-		binaryPath           = flag.String("hy-smi.path", cfg.BinaryPath, "Path to the hy-smi binary. Resolved through $PATH if unqualified.")
-		timeout              = flag.Duration("hy-smi.timeout", cfg.Timeout, "Timeout for a single hy-smi invocation.")
+		listenAddr            = flag.String("web.listen-address", cfg.ListenAddr, "Address to listen on for /metrics.")
+		metricsPath           = flag.String("web.telemetry-path", cfg.MetricsPath, "Path under which metrics are exposed.")
+		logLevel              = flag.String("log.level", cfg.LogLevel, "Log level: debug, info, warn, error.")
+		binaryPath            = flag.String("hy-smi.path", cfg.BinaryPath, "Path to the hy-smi binary. Resolved through $PATH if unqualified.")
+		timeout               = flag.Duration("hy-smi.timeout", cfg.Timeout, "Timeout for a single hy-smi invocation.")
 		collectOneSecondStats = flag.Bool("hy-smi.collect-1s-stats", cfg.CollectOneSecondStats, "Collect detailed one-second utilization and bandwidth statistics.")
-		showVersion          = flag.Bool("version", false, "Print version information and exit.")
+		showVersion           = flag.Bool("version", false, "Print version information and exit.")
 	)
 	flag.Parse()
 
