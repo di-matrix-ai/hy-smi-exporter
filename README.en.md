@@ -3,6 +3,9 @@
 Prometheus exporter for Hygon DCU / HCU accelerators. It runs the read-only
 `hy-smi` command, parses JSON when available, falls back to text output for
 older drivers, and exposes per-device metrics under the `hy_smi_` prefix.
+The default scrape avoids detailed one-second statistics. Unique IDs and
+health state are enriched with the read-only `--showuniqueid` and
+`--healthcheck` queries when the summary output omits them.
 
 ## Quick start
 
@@ -13,12 +16,13 @@ make build
 make test
 ```
 
-Run it on a host where `hy-smi` or `hcu-smi` is available:
+Run it on a host where `hy-smi` is available:
 
 ```bash
 ./bin/hy-smi-exporter \
   --web.listen-address=:9584 \
-  --hy-smi.path=/usr/bin/hy-smi
+  --hy-smi.path=/usr/bin/hy-smi \
+  --hy-smi.collect-1s-stats=false
 ```
 
 Metrics are available at <http://localhost:9584/metrics> and the liveness
@@ -48,14 +52,20 @@ Planned community work is tracked in [`ROADMAP.md`](ROADMAP.md).
 ## Requirements
 
 - Go 1.23+ to build.
-- A supported vendor driver and a `hy-smi` / `hcu-smi` command interface whose
+- A supported vendor driver and a `hy-smi` command interface whose
   output remains compatible with the current parser. The compatibility matrix
   distinguishes interface-based support from real-device verification.
-- A host installation of `hy-smi` or `hcu-smi`; container deployment is outside
+- A host installation of `hy-smi`; container deployment is outside
   the compatibility scope of `v1.0.0`.
 
 The exporter invokes only read-only commands. It never uses `--set*`,
 `--rasinject`, `--load*driver`, or `--reset*` options.
+
+Detailed utilization and PCIe/XHCL/DF/UMC bandwidth metrics may require
+one-second statistical queries and are disabled by default to keep scrape
+latency predictable on multi-card hosts. Enable them with
+`--hy-smi.collect-1s-stats=true` or
+`HY_SMI_EXPORTER_COLLECT_1S_STATS=true`.
 
 ## Deployment examples
 

@@ -1,7 +1,7 @@
 # hy-smi-exporter
 
-面向海光 DCU / HCU 加速器的 Prometheus 指标采集器。项目基于驱动提供的通用 `hy-smi` / `hcu-smi` 命令接口适配设备；命令接口保持兼容时可共用当前采集实现，具体支持范围和真实设备验证状态见 [兼容性矩阵](docs/compatibility.md)。
-通过只读命令 `hy-smi -a --json` 采集每张卡的运行数据；对于不支持该 JSON 组合参数的驱动版本，自动回退到 `hy-smi -a` 文本输出，以 `hy_smi_` 前缀暴露在 `/metrics` 端点。
+面向海光 DCU / HCU 加速器的 Prometheus 指标采集器。项目基于驱动提供的通用 `hy-smi` 命令接口适配设备；命令接口保持兼容时可共用当前采集实现，具体支持范围和真实设备验证状态见 [兼容性矩阵](docs/compatibility.md)。
+默认通过轻量只读命令 `hy-smi --json` 采集每张卡的基础运行数据；JSON 不可用时自动回退到 `hy-smi` 文本输出。设备唯一标识和健康状态分别通过 `--showuniqueid`、`--healthcheck` 补充采集，并以 `hy_smi_` 前缀暴露在 `/metrics` 端点。
 
 参考 [reloaded/prometheus_consumer_amdgpu_exporter](https://github.com/reloaded/prometheus_consumer_amdgpu_exporter)（AMD）和 [NVIDIA/dcgm-exporter](https://github.com/NVIDIA/dcgm-exporter)（NVIDIA）的架构，采用"每次抓取执行主查询 + prometheus.Collector"模式；当主查询不含显存统计时，按需补充只读显存查询。
 
@@ -22,14 +22,18 @@ available in [docs/compatibility.md](docs/compatibility.md) and
 
 ## 安全说明
 
-**本程序只调用只读命令，绝不执行任何写入操作。** 每次抓取依次尝试：
+**本程序只调用只读命令，绝不执行任何写入操作。** 默认每次抓取按需执行：
 
 ```
-hy-smi -a --json
-hy-smi -a   # 仅当上一个命令不支持 JSON 或解析失败时
+hy-smi --json
+hy-smi                            # 仅当 JSON 不支持或解析失败时
+hy-smi --showuniqueid --json      # 主查询缺少 Unique ID 时
+hy-smi --healthcheck --json       # 主查询缺少健康状态时
 hy-smi --showmeminfo all --json       # 仅当主查询缺少显存统计时
 hy-smi --showmemavailable --json      # 仅当主查询缺少显存统计时
 ```
+
+部分利用率和带宽参数会统计过去 1 秒的数据，在 8 卡等多卡节点上可能增加抓取耗时，因此默认不采集。需要这些指标时，显式设置 `--hy-smi.collect-1s-stats=true`；启用后主查询使用 `hy-smi -a --json`，必要时回退到 `hy-smi -a`。
 
 不会调用 `--set*`、`--rasinject`、`--load*driver`、`--reset*` 等任何修改硬件配置的选项。
 
@@ -40,9 +44,11 @@ hy-smi --showmemavailable --json      # 仅当主查询缺少显存统计时
 所有指标以 `hy_smi_` 为前缀。设备级指标携带 `gpu`（设备序号）标签；
 `instance` 由 Prometheus 抓取目标自动添加，exporter 不重复生成。
 
+利用率及 PCIe、XHCL、DF、UMC 带宽指标属于 1 秒统计项，默认不输出；只有启用 `--hy-smi.collect-1s-stats=true` 后才会出现。
+
 | 指标名 | 类型 | 说明 |
 |--------|------|------|
-| `hy_smi_up` | gauge | 最近一次 `hy-smi` / `hcu-smi` 采集是否成功（成功为 1，失败为 0） |
+| `hy_smi_up` | gauge | 最近一次 `hy-smi` 采集是否成功（成功为 1，失败为 0） |
 | `hy_smi_devices` | gauge | 最近一次成功采集发现的 HCU 设备总数 |
 | `hy_smi_info` | gauge (=1) | 设备身份信息（device_id / serial / product_name / vbios / driver / bus / health / mode 等） |
 | `hy_smi_temperature_celsius` | gauge | 各传感器温度（edge / junction / mem / hotspot） |
@@ -88,8 +94,8 @@ hy-smi --showmemavailable --json      # 仅当主查询缺少显存统计时
 ## 环境要求
 
 - Go 1.23+（编译时需要）
-- `hy-smi` 或 `hcu-smi` 命令可执行（在 `$PATH` 中或通过 `--hy-smi.path` 指定）
-- 目标设备应由对应驱动正常支持，且 `hy-smi` / `hcu-smi` 命令输出与当前解析实现兼容；具体支持范围和实测状态见 [兼容性矩阵](docs/compatibility.md)
+- `hy-smi` 命令可执行（在 `$PATH` 中或通过 `--hy-smi.path` 指定）
+- 目标设备应由对应驱动正常支持，且 `hy-smi` 命令输出与当前解析实现兼容；具体支持范围和实测状态见 [兼容性矩阵](docs/compatibility.md)
 - 首版支持直接运行或 systemd；容器、Docker Compose 和 Kubernetes 不属于首版兼容范围
 
 ---
@@ -130,6 +136,7 @@ make fmt
   --web.listen-address=:9584 \
   --hy-smi.path=/usr/bin/hy-smi \
   --hy-smi.timeout=5s \
+  --hy-smi.collect-1s-stats=false \
   --log.level=info
 ```
 
@@ -140,8 +147,9 @@ make fmt
 | `--web.listen-address` | `:9584` | `HY_SMI_EXPORTER_LISTEN_ADDR` | 监听地址 |
 | `--web.telemetry-path` | `/metrics` | `HY_SMI_EXPORTER_METRICS_PATH` | 指标路径 |
 | `--log.level` | `info` | `HY_SMI_EXPORTER_LOG_LEVEL` | 日志级别（debug/info/warn/error） |
-| `--hy-smi.path` | `hy-smi` | `HY_SMI_EXPORTER_BINARY_PATH` | hy-smi / hcu-smi 二进制路径 |
+| `--hy-smi.path` | `hy-smi` | `HY_SMI_EXPORTER_BINARY_PATH` | hy-smi 二进制路径 |
 | `--hy-smi.timeout` | `5s` | `HY_SMI_EXPORTER_TIMEOUT` | 单次命令超时时间 |
+| `--hy-smi.collect-1s-stats` | `false` | `HY_SMI_EXPORTER_COLLECT_1S_STATS` | 是否采集耗时的 1 秒利用率和带宽统计；多卡节点建议保持关闭 |
 
 ## 部署
 
@@ -149,7 +157,7 @@ make fmt
 
 仓库提供 `examples/hy-smi-exporter.service` 和
 `examples/hy-smi-exporter.env`。将二进制安装到目标路径、确认
-`hy-smi` / `hcu-smi` 可执行后，再按目标发行版注册服务。
+`hy-smi` 可执行后，再按目标发行版注册服务。
 
 ### 首版不支持的部署方式
 
@@ -208,12 +216,13 @@ hy-smi-exporter/
 
 | 现象 | 排查方法 |
 |------|----------|
-| `hy_smi_up` 为 0 | 检查日志及 `hy-smi -a --json`、`hy-smi -a` 是否可正常执行；确认驱动、工具路径和权限 |
+| `hy_smi_up` 为 0 | 检查日志及 `hy-smi --json`、`hy-smi` 是否可正常执行；确认驱动、工具路径和权限 |
 | `hy_smi_up` 为 1 但设备数为 0 | 检查驱动模块、设备节点和厂商工具输出 |
 | `hy-smi binary not found` 日志 | 确认 `hy-smi` 在 `$PATH` 中，或通过 `--hy-smi.path` 指定绝对路径 |
-| `Permission denied` | 检查宿主机 `hy-smi` / `hcu-smi` 权限、设备节点和运行用户 |
+| `Permission denied` | 检查宿主机 `hy-smi` 权限、设备节点和运行用户 |
 | 驱动未加载 | `lsmod \| grep -E "hydcu\|hycu"` 确认驱动已加载 |
-| 指标字段值为 0 | 在真实海光机器上执行 `hy-smi -a > sample.txt` 或 `hy-smi -a --json > sample.json`，将样本提供给开发者以校准字段映射 |
+| `hy_smi_info` 的 `unique_id` 或 `health` 为空 | 分别执行 `hy-smi --showuniqueid`、`hy-smi --healthcheck`，保留脱敏输出用于校准字段映射 |
+| 利用率或带宽指标未出现 | 这些 1 秒统计项默认关闭；按需设置 `--hy-smi.collect-1s-stats=true`，并适当增大抓取超时 |
 
 ---
 

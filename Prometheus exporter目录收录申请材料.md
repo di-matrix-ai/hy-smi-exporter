@@ -7,8 +7,8 @@
 Pull Request。目录收录是社区项目展示，不代表 Prometheus 官方认证、兼容性
 背书或技术支持。
 
-当前仓库保持私有。海光公开授权、真实设备测试、兼容矩阵、指标语义和双方
-正式放行完成前，不提交目录 PR，也不申请默认端口登记。
+当前仓库已公开。正式 `v1.0.0` Release、候选版本复测、兼容矩阵和鼎茂正式
+放行完成前，不提交目录 PR，也不申请默认端口登记。
 
 ## 2 项目信息
 
@@ -17,18 +17,18 @@ Pull Request。目录收录是社区项目展示，不代表 Prometheus 官方�
 | 项目名 | `hy-smi-exporter` |
 | 仓库 | `https://github.com/di-matrix-ai/hy-smi-exporter` |
 | 维护方 | Shanghai Ding Mao Information Technology Co., Ltd. |
-| 技术协作者 | Hygon team，账号 `@zqwangadv`、`@kinglong08`，以最终公开授权为准 |
+| 技术协作 | 相关设备厂商技术人员以个人 GitHub 账号参与，不代表厂商官方授权或认证 |
 | 许可证 | Apache License 2.0 |
 | 语言 | Go |
 | 运行平台 | Linux `amd64`、Linux `arm64`，以 Release 验证结果为准 |
-| 依赖 | 宿主机已安装并可执行的 `hy-smi` / `hcu-smi` |
+| 依赖 | 宿主机已安装并可执行的 `hy-smi` |
 | 指标端点 | `/metrics` |
 | 默认端口 | `9584`，仓库公开后须再次复核并登记或调整 |
 
 英文简介：
 
 > Prometheus exporter for Hygon DCU / HCU accelerators using read-only
-> `hy-smi` or `hcu-smi` queries.
+> `hy-smi` queries.
 
 ## 3 Prometheus 文档改动
 
@@ -62,7 +62,7 @@ This PR adds hy-smi-exporter to the hardware-related exporter directory.
 - Maintainer: Shanghai Ding Mao Information Technology Co., Ltd.
 
 The exporter collects Hygon DCU / HCU device metrics through host-provided,
-read-only `hy-smi` or `hcu-smi` commands. Supported hardware and driver
+read-only `hy-smi` commands. Supported hardware and driver
 combinations are documented in the project's verified compatibility matrix.
 ```
 
@@ -72,7 +72,7 @@ combinations are documented in the project's verified compatibility matrix.
 - [ ] 对外 Git 历史不含内部审批表、个人联系方式和真实设备标识；
 - [ ] Apache-2.0 `LICENSE`、`NOTICE`、README、安装和指标文档完整；
 - [ ] 至少一个正式 GitHub Release 可下载，Linux 产物和校验和已验证；
-- [ ] 海光公开授权、真实设备报告、兼容矩阵和指标语义已经确认；
+- [ ] 技术协作和非官方发布边界已留档，真实设备报告、兼容矩阵和指标语义已经确认；
 - [ ] Release Notes 和公告没有 `TBD`、示例地址或未确认承诺；
 - [ ] GitHub Issues、维护者和私密安全报告渠道有效；
 - [ ] 默认端口 `9584` 已在 Prometheus 端口登记页面复核，无冲突或已完成登记；
@@ -101,6 +101,7 @@ git commit -s -m "Add hy-smi-exporter"
 
 ## 7 统一对外口径
 
-`hy-smi-exporter` 由鼎茂维护，海光团队按书面确认范围参与设备、驱动、厂商
-工具兼容性和指标语义协作。支持范围以公开兼容矩阵中的真实设备测试结果为准。
+`hy-smi-exporter` 由鼎茂独立开发、维护和发布。相关设备厂商技术人员可按个人
+身份参与设备、驱动、厂商工具兼容性和指标语义协作，但不代表厂商官方授权、
+联合发布或质量担保。支持范围以鼎茂公开兼容矩阵中的真实设备测试结果为准。
 Prometheus exporter 目录收录仅表示项目链接被社区文档列出。
