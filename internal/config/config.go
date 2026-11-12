@@ -6,6 +6,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,21 +15,23 @@ const envPrefix = "HY_SMI_EXPORTER_"
 
 // Config is the resolved runtime configuration.
 type Config struct {
-	ListenAddr  string
-	MetricsPath string
-	LogLevel    string
-	BinaryPath  string
-	Timeout     time.Duration
+	ListenAddr            string
+	MetricsPath           string
+	LogLevel              string
+	BinaryPath            string
+	Timeout               time.Duration
+	CollectOneSecondStats bool
 }
 
 // Default returns the zero-config with sensible defaults applied.
 func Default() Config {
 	return Config{
-		ListenAddr:  ":9584",
-		MetricsPath: "/metrics",
-		LogLevel:    "info",
-		BinaryPath:  "hy-smi",
-		Timeout:     5 * time.Second,
+		ListenAddr:            ":9584",
+		MetricsPath:           "/metrics",
+		LogLevel:              "info",
+		BinaryPath:            "hy-smi",
+		Timeout:               5 * time.Second,
+		CollectOneSecondStats: false,
 	}
 }
 
@@ -42,6 +45,11 @@ func FromEnv() Config {
 	if v, ok := os.LookupEnv(envPrefix + "TIMEOUT"); ok && v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
 			c.Timeout = d
+		}
+	}
+	if v, ok := os.LookupEnv(envPrefix + "COLLECT_1S_STATS"); ok && v != "" {
+		if enabled, err := strconv.ParseBool(v); err == nil {
+			c.CollectOneSecondStats = enabled
 		}
 	}
 	return c
