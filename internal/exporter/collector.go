@@ -1,5 +1,6 @@
 // Package exporter wires the hy-smi backend behind a single
-// prometheus.Collector. One scrape == one `hy-smi -a --json` call.
+// prometheus.Collector. Each scrape runs the configured read-only hy-smi
+// queries and merges their results.
 // Metrics are emitted with the `hy_smi_` prefix so this exporter
 // coexists cleanly with node_exporter / dcgm-exporter / amdgpu_exporter.
 package exporter
@@ -17,17 +18,19 @@ import (
 // Collector implements prometheus.Collector. Each scrape calls
 // Backend.Snapshot once and emits one metric series per device.
 type Collector struct {
-	smi    *hysmi.Backend
-	logger *slog.Logger
-	descs  collectorDescs
+	smi                   *hysmi.Backend
+	logger                *slog.Logger
+	descs                 collectorDescs
+	collectOneSecondStats bool
 }
 
 // NewCollector builds a Collector over the given backend.
 func NewCollector(smi *hysmi.Backend, logger *slog.Logger) *Collector {
 	return &Collector{
-		smi:    smi,
-		logger: logger,
-		descs:  newCollectorDescs(),
+		smi:                   smi,
+		logger:                logger,
+		descs:                 newCollectorDescs(),
+		collectOneSecondStats: smi.CollectOneSecondStats(),
 	}
 }
 
@@ -110,23 +113,26 @@ func (c *Collector) emitDevice(ch chan<- prometheus.Metric, d hysmi.Device, driv
 		ch <- prometheus.MustNewConstMetric(c.descs.voltage, prometheus.GaugeValue, d.VoltageVolts, gpu, "core")
 	}
 
-	// Utilization.
-	ch <- prometheus.MustNewConstMetric(c.descs.hcuUtil, prometheus.GaugeValue, d.HCUUtilPct/100, labels...)
-	ch <- prometheus.MustNewConstMetric(c.descs.cuUtil, prometheus.GaugeValue, d.CUUtilPct/100, labels...)
-	if d.WaveUtilPct > 0 {
-		ch <- prometheus.MustNewConstMetric(c.descs.waveUtil, prometheus.GaugeValue, d.WaveUtilPct/100, labels...)
-	}
-	if d.DecUtilPct > 0 {
-		ch <- prometheus.MustNewConstMetric(c.descs.decUtil, prometheus.GaugeValue, d.DecUtilPct/100, labels...)
-	}
-	if d.EncUtilPct > 0 {
-		ch <- prometheus.MustNewConstMetric(c.descs.encUtil, prometheus.GaugeValue, d.EncUtilPct/100, labels...)
-	}
-	if d.MemUtilPct > 0 {
-		ch <- prometheus.MustNewConstMetric(c.descs.memUtil, prometheus.GaugeValue, d.MemUtilPct/100, labels...)
-	}
-	if d.VRAMUtilPct > 0 {
-		ch <- prometheus.MustNewConstMetric(c.descs.vramUtil, prometheus.GaugeValue, d.VRAMUtilPct/100, labels...)
+	// Utilization values are based on one-second statistical queries on some
+	// devices. Do not expose zero-valued placeholders when collection is off.
+	if c.collectOneSecondStats {
+		ch <- prometheus.MustNewConstMetric(c.descs.hcuUtil, prometheus.GaugeValue, d.HCUUtilPct/100, labels...)
+		ch <- prometheus.MustNewConstMetric(c.descs.cuUtil, prometheus.GaugeValue, d.CUUtilPct/100, labels...)
+		if d.WaveUtilPct > 0 {
+			ch <- prometheus.MustNewConstMetric(c.descs.waveUtil, prometheus.GaugeValue, d.WaveUtilPct/100, labels...)
+		}
+		if d.DecUtilPct > 0 {
+			ch <- prometheus.MustNewConstMetric(c.descs.decUtil, prometheus.GaugeValue, d.DecUtilPct/100, labels...)
+		}
+		if d.EncUtilPct > 0 {
+			ch <- prometheus.MustNewConstMetric(c.descs.encUtil, prometheus.GaugeValue, d.EncUtilPct/100, labels...)
+		}
+		if d.MemUtilPct > 0 {
+			ch <- prometheus.MustNewConstMetric(c.descs.memUtil, prometheus.GaugeValue, d.MemUtilPct/100, labels...)
+		}
+		if d.VRAMUtilPct > 0 {
+			ch <- prometheus.MustNewConstMetric(c.descs.vramUtil, prometheus.GaugeValue, d.VRAMUtilPct/100, labels...)
+		}
 	}
 
 	// Memory (bytes).
@@ -167,18 +173,18 @@ func (c *Collector) emitDevice(ch chan<- prometheus.Metric, d hysmi.Device, driv
 	if d.PCIELinkWidth > 0 {
 		ch <- prometheus.MustNewConstMetric(c.descs.pcieWidth, prometheus.GaugeValue, float64(d.PCIELinkWidth), labels...)
 	}
-	if d.PCIEBandwidthMBs > 0 {
+	if c.collectOneSecondStats && d.PCIEBandwidthMBs > 0 {
 		ch <- prometheus.MustNewConstMetric(c.descs.pcieBw, prometheus.GaugeValue, d.PCIEBandwidthMBs, labels...)
 	}
 
 	// Interconnect.
-	if d.XHCLBwMBs > 0 {
+	if c.collectOneSecondStats && d.XHCLBwMBs > 0 {
 		ch <- prometheus.MustNewConstMetric(c.descs.xhclBw, prometheus.GaugeValue, d.XHCLBwMBs, labels...)
 	}
-	if d.DFBwMBs > 0 {
+	if c.collectOneSecondStats && d.DFBwMBs > 0 {
 		ch <- prometheus.MustNewConstMetric(c.descs.dfBw, prometheus.GaugeValue, d.DFBwMBs, labels...)
 	}
-	if d.UMCBwMBs > 0 {
+	if c.collectOneSecondStats && d.UMCBwMBs > 0 {
 		ch <- prometheus.MustNewConstMetric(c.descs.umcBw, prometheus.GaugeValue, d.UMCBwMBs, labels...)
 	}
 	if d.XHCLStatus != "" {

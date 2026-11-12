@@ -29,7 +29,7 @@ func TestCollectorMetricContract(t *testing.T) {
     "vram_used_bytes": 536870912
   }
 ]`)
-	families := gather(t, hysmi.New(stub, time.Second))
+	families := gather(t, hysmi.New(stub, time.Second, true))
 
 	assertMetricValue(t, families, "hy_smi_up", 1)
 	assertMetricValue(t, families, "hy_smi_devices", 1)
@@ -61,13 +61,23 @@ func TestCollectorMetricContract(t *testing.T) {
 
 func TestCollectorReportsSuccessfulZeroDeviceQuery(t *testing.T) {
 	stub := writeExporterStub(t, `{}`)
-	families := gather(t, hysmi.New(stub, time.Second))
+	families := gather(t, hysmi.New(stub, time.Second, false))
 	assertMetricValue(t, families, "hy_smi_up", 1)
 	assertMetricValue(t, families, "hy_smi_devices", 0)
 }
 
+func TestCollectorOmitsOneSecondStatsByDefault(t *testing.T) {
+	stub := writeExporterStub(t, `[{"device_index":0,"hcu_util_pct":25,"pcie_bandwidth_mbs":100}]`)
+	families := gather(t, hysmi.New(stub, time.Second, false))
+	for _, name := range []string{"hy_smi_hcu_utilization_ratio", "hy_smi_pcie_bandwidth_mbytes_per_second"} {
+		if _, ok := families[name]; ok {
+			t.Errorf("one-second statistic %s must be absent when collection is disabled", name)
+		}
+	}
+}
+
 func TestCollectorReportsBackendFailure(t *testing.T) {
-	families := gather(t, hysmi.New(filepath.Join(t.TempDir(), "missing-hy-smi"), time.Second))
+	families := gather(t, hysmi.New(filepath.Join(t.TempDir(), "missing-hy-smi"), time.Second, false))
 	assertMetricValue(t, families, "hy_smi_up", 0)
 	if _, ok := families["hy_smi_devices"]; ok {
 		t.Error("device count must not be emitted when the backend query fails")
