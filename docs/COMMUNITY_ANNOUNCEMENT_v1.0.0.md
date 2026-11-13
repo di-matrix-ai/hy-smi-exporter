@@ -58,3 +58,5 @@
 ## 联系方式
 
 - 鼎茂发布账号：`@estericShen`，联系邮箱 `esteric_shen@di-matrix.com`；
+- 技术协作者/社区贡献者：王忠勤（`@zqwangadv`）、代金龙（`@kinglong08`），以个人身份参与；
+- 安全问题反馈：`esteric_shen@di-matrix.com`。
