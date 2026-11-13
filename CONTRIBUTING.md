@@ -10,7 +10,8 @@ Please search existing issues first. For parser or metric problems, include:
 - exporter version and commit;
 - Go, Linux distribution, kernel, driver, and `hy-smi` versions;
 - the command-line options used;
-- relevant logs and a redacted `hy-smi -a --json` or `hy-smi -a` sample.
+- relevant logs and redacted `hy-smi --json`, text fallback, and affected
+  subcommand samples.
 
 Do not include serial numbers, hostnames, PCI addresses, or other sensitive
 values unless they have been reviewed and redacted.

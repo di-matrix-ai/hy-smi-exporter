@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 // TestParseMapForm covers the map-of-cards shape emitted by the
@@ -171,6 +172,23 @@ func TestParseNormalizedByteFields(t *testing.T) {
 	}
 }
 
+func TestParseUniqueIDAndHealthAliases(t *testing.T) {
+	raw := []byte(`{"card0":{"Device ID":"0x6370","UUID":"K100-TEST-UUID","Health State":"Healthy"}}`)
+	snap, err := parse(raw)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(snap.Devices) != 1 {
+		t.Fatalf("devices: want 1, got %d", len(snap.Devices))
+	}
+	if got := snap.Devices[0].UniqueID; got != "K100-TEST-UUID" {
+		t.Errorf("unique ID: want K100-TEST-UUID, got %q", got)
+	}
+	if got := snap.Devices[0].Health; got != "Healthy" {
+		t.Errorf("health: want Healthy, got %q", got)
+	}
+}
+
 func TestParseText(t *testing.T) {
 	raw := []byte("\x1b[31mWarning\x1b[0m\n" +
 		"Driver Version: 6.3.28-V1.3.0b\n" +
@@ -187,6 +205,8 @@ func TestParseText(t *testing.T) {
 		"HCU[1]\t\t: HCU use (%): 0.0\n" +
 		"HCU[1]\t\t: HCU memory use (%): 0\n" +
 		"HCU[1]\t\t: Serial Number: TEST-SERIAL-0001\n" +
+		"HCU[1]\t\t: UUID: TEST-UUID-0001\n" +
+		"HCU[1]\t\t: Health Status: Healthy\n" +
 		"HCU[1]\t\t: Voltage (mV): 743\n" +
 		"HCU[1]\t\t: PCI Bus: 0000:97:00.0 --> OAM ID: 0\n" +
 		"HCU[1]\t\t: Card Series:\t\t BW100\n")
@@ -210,6 +230,9 @@ func TestParseText(t *testing.T) {
 	if d.PowerWatts != 53 || d.MaxPowerWatts != 400 || d.VoltageVolts != 0.743 {
 		t.Errorf("power/voltage: power=%v max=%v voltage=%v", d.PowerWatts, d.MaxPowerWatts, d.VoltageVolts)
 	}
+	if d.UniqueID != "TEST-UUID-0001" || d.Health != "Healthy" {
+		t.Errorf("identity/health: unique_id=%q health=%q", d.UniqueID, d.Health)
+	}
 }
 
 func TestBackendWithTextFallback(t *testing.T) {
@@ -219,7 +242,7 @@ func TestBackendWithTextFallback(t *testing.T) {
 		"HCU[0] : Temperature (Sensor edge) (C): 50.0\n"+
 		"HCU[0] : Average Graphics Package Power (W): 20.0\n"+
 		"EOF\n")
-	b := New(stub, 0)
+	b := New(stub, 0, false)
 	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
 	snap, err := b.Snapshot(context.Background(), logger)
 	if err != nil {
@@ -236,7 +259,7 @@ func TestBackendWithTextFallback(t *testing.T) {
 // warning latch must engage without spamming.
 func TestBackendBinaryNotFound(t *testing.T) {
 	t.Setenv("PATH", "/dev/null")
-	b := New("", 0)
+	b := New("", 0, false)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	snap, err := b.Snapshot(context.Background(), logger)
 	if err == nil {
@@ -252,7 +275,7 @@ func TestBackendBinaryNotFound(t *testing.T) {
 
 func TestBackendBinaryNotFoundConcurrent(t *testing.T) {
 	t.Setenv("PATH", "/dev/null")
-	b := New("", 0)
+	b := New("", 0, false)
 	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
 
 	var wg sync.WaitGroup
@@ -275,7 +298,7 @@ func TestBackendBinaryNotFoundConcurrent(t *testing.T) {
 // parsed snapshot.
 func TestBackendWithStubBinary(t *testing.T) {
 	stub := writeStub(t, "two_cards.json")
-	b := New(stub, 0)
+	b := New(stub, 0, false)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	snap, err := b.Snapshot(context.Background(), logger)
 	if err != nil {
@@ -293,7 +316,7 @@ func TestBackendWithStubBinary(t *testing.T) {
 // is returned to the caller and produces an empty snapshot.
 func TestBackendWithFailingStub(t *testing.T) {
 	stub := writeStubScript(t, "#!/bin/sh\necho boom >&2\nexit 1\n")
-	b := New(stub, 0)
+	b := New(stub, 0, false)
 	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
 	snap, err := b.Snapshot(context.Background(), logger)
 	if err == nil {
@@ -301,6 +324,59 @@ func TestBackendWithFailingStub(t *testing.T) {
 	}
 	if len(snap.Devices) != 0 {
 		t.Fatalf("expected 0 devices on non-zero exit, got %d", len(snap.Devices))
+	}
+}
+
+func TestBackendEnrichesUniqueIDAndHealthWithoutAllQuery(t *testing.T) {
+	stub := writeStubScript(t, `#!/bin/sh
+case "$*" in
+  *-a*) exit 91 ;;
+  "--json")
+    echo '{"card0":{"Device ID":"0x6370","Total VRAM (MiB)":1,"Used VRAM (MiB)":1,"Available VRAM (MiB)":1,"Total GTT (MiB)":1},"card1":{"Device ID":"0x6370","Total VRAM (MiB)":1,"Used VRAM (MiB)":1,"Available VRAM (MiB)":1,"Total GTT (MiB)":1}}'
+    ;;
+  "--showuniqueid --json")
+    echo '{"card0":{"UUID":"K100-TEST-UUID-0"},"card1":{"UUID":"K100-TEST-UUID-1"}}'
+    ;;
+  "--healthcheck --json")
+    echo '{"card0":{"Health Check":"Healthy"},"card1":{"Device Health":"Warning"}}'
+    ;;
+  *) exit 92 ;;
+esac
+`)
+	b := New(stub, time.Second, false)
+	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if len(snap.Devices) != 2 {
+		t.Fatalf("devices: want 2, got %d", len(snap.Devices))
+	}
+	if got := snap.Devices[0].UniqueID; got != "K100-TEST-UUID-0" {
+		t.Errorf("device 0 unique ID: want K100-TEST-UUID-0, got %q", got)
+	}
+	if got := snap.Devices[0].Health; got != "Healthy" {
+		t.Errorf("device 0 health: want Healthy, got %q", got)
+	}
+	if got := snap.Devices[1].UniqueID; got != "K100-TEST-UUID-1" {
+		t.Errorf("device 1 unique ID: want K100-TEST-UUID-1, got %q", got)
+	}
+	if got := snap.Devices[1].Health; got != "Warning" {
+		t.Errorf("device 1 health: want Warning, got %q", got)
+	}
+}
+
+func TestBackendUsesAllQueryWhenOneSecondStatsEnabled(t *testing.T) {
+	stub := writeStubScript(t, `#!/bin/sh
+if [ "$*" != "-a --json" ]; then
+  exit 93
+fi
+echo '{"card0":{"Device ID":"0x6370","Unique ID":"TEST-UUID","Health":"Healthy","Total VRAM (MiB)":1,"Used VRAM (MiB)":1,"Available VRAM (MiB)":1,"Total GTT (MiB)":1}}'
+`)
+	b := New(stub, time.Second, true)
+	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	if _, err := b.Snapshot(context.Background(), logger); err != nil {
+		t.Fatalf("snapshot: %v", err)
 	}
 }
 

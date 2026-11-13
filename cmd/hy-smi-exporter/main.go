@@ -1,6 +1,6 @@
 // Command hy-smi-exporter is a Prometheus exporter for Hygon DCU
 // (Data Center Unit) / HCU accelerators. It shells out to the
-// read-only `hy-smi -a --json` command and exposes the parsed
+// read-only `hy-smi` command and exposes the parsed
 // per-device metrics under the `hy_smi_` prefix on /metrics.
 //
 // Only read-only hy-smi options are ever invoked. No --set*/,
@@ -44,12 +44,13 @@ func main() {
 	cfg := config.FromEnv()
 
 	var (
-		listenAddr  = flag.String("web.listen-address", cfg.ListenAddr, "Address to listen on for /metrics.")
-		metricsPath = flag.String("web.telemetry-path", cfg.MetricsPath, "Path under which metrics are exposed.")
-		logLevel    = flag.String("log.level", cfg.LogLevel, "Log level: debug, info, warn, error.")
-		binaryPath  = flag.String("hy-smi.path", cfg.BinaryPath, "Path to hy-smi / hcu-smi binary. Resolved through $PATH if unqualified.")
-		timeout     = flag.Duration("hy-smi.timeout", cfg.Timeout, "Timeout for a single hy-smi invocation.")
-		showVersion = flag.Bool("version", false, "Print version information and exit.")
+		listenAddr            = flag.String("web.listen-address", cfg.ListenAddr, "Address to listen on for /metrics.")
+		metricsPath           = flag.String("web.telemetry-path", cfg.MetricsPath, "Path under which metrics are exposed.")
+		logLevel              = flag.String("log.level", cfg.LogLevel, "Log level: debug, info, warn, error.")
+		binaryPath            = flag.String("hy-smi.path", cfg.BinaryPath, "Path to the hy-smi binary. Resolved through $PATH if unqualified.")
+		timeout               = flag.Duration("hy-smi.timeout", cfg.Timeout, "Timeout for a single hy-smi invocation.")
+		collectOneSecondStats = flag.Bool("hy-smi.collect-1s-stats", cfg.CollectOneSecondStats, "Collect detailed one-second utilization and bandwidth statistics.")
+		showVersion           = flag.Bool("version", false, "Print version information and exit.")
 	)
 	flag.Parse()
 
@@ -64,18 +65,19 @@ func main() {
 	// Re-resolve config from flags so the collector sees the final
 	// values.
 	finalCfg := config.Config{
-		ListenAddr:  *listenAddr,
-		MetricsPath: *metricsPath,
-		LogLevel:    *logLevel,
-		BinaryPath:  *binaryPath,
-		Timeout:     *timeout,
+		ListenAddr:            *listenAddr,
+		MetricsPath:           *metricsPath,
+		LogLevel:              *logLevel,
+		BinaryPath:            *binaryPath,
+		Timeout:               *timeout,
+		CollectOneSecondStats: *collectOneSecondStats,
 	}
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		collectors.NewGoCollector(),
-		exporter.NewCollector(hysmi.New(finalCfg.BinaryPath, finalCfg.Timeout), logger),
+		exporter.NewCollector(hysmi.New(finalCfg.BinaryPath, finalCfg.Timeout, finalCfg.CollectOneSecondStats), logger),
 	)
 
 	mux := http.NewServeMux()
@@ -113,6 +115,7 @@ func main() {
 			"addr", *listenAddr,
 			"binary", finalCfg.BinaryPath,
 			"timeout", finalCfg.Timeout.String(),
+			"collect_1s_stats", finalCfg.CollectOneSecondStats,
 		)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server error", "err", err)

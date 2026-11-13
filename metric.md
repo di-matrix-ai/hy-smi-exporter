@@ -19,7 +19,7 @@
 
 ## 2 hy-smi-exporter 的作用
 
-`hy-smi-exporter` 是连接海光 DCU / HCU 设备管理工具与 Prometheus 监控体系的指标采集服务。它调用宿主机已有的 `hy-smi` / `hcu-smi` 只读命令，解析设备状态和运行数据，统一转换为以 `hy_smi_` 为前缀的 Prometheus 指标，并通过 HTTP `/metrics` 端点提供给 Prometheus 抓取。
+`hy-smi-exporter` 是连接海光 DCU / HCU 设备管理工具与 Prometheus 监控体系的指标采集服务。它调用宿主机已有的 `hy-smi` 只读命令，解析设备状态和运行数据，统一转换为以 `hy_smi_` 为前缀的 Prometheus 指标，并通过 HTTP `/metrics` 端点提供给 Prometheus 抓取。
 
 它主要解决以下问题：
 
@@ -32,7 +32,7 @@
 | 告警和可视化 | 指标可用于 Prometheus 告警规则以及 Grafana 等可视化平台 |
 | 运维问题定位 | 通过设备、驱动、总线、健康状态和采集状态指标辅助定位故障 |
 
-`hy-smi-exporter` 只负责采集和转换指标，不安装或分发驱动、固件及 `hy-smi` / `hcu-smi` 厂商工具，也不修改设备配置。
+`hy-smi-exporter` 只负责采集和转换指标，不安装或分发驱动、固件及 `hy-smi` 厂商工具，也不修改设备配置。
 
 ## 3 服务工作方式
 
@@ -40,12 +40,14 @@ Prometheus 每次访问 `/metrics` 时，Exporter 按以下流程执行采集：
 
 | 步骤 | 处理内容 |
 | --- | --- |
-| 1 | 优先执行 `hy-smi -a --json`，获取结构化设备数据 |
-| 2 | JSON 参数不受支持或解析失败时，自动回退到 `hy-smi -a` 文本输出 |
-| 3 | 主查询缺少显存信息时，按需执行只读的显存补充查询 |
-| 4 | 解析每张设备卡的数据，并将单位统一转换为 Prometheus 推荐的基础单位 |
-| 5 | 通过 `/metrics` 输出设备级指标，供 Prometheus 定时抓取 |
-| 6 | 通过 `hy_smi_up` 标识最近一次厂商工具采集是否成功 |
+| 1 | 默认执行轻量的 `hy-smi --json`，获取结构化设备基础数据 |
+| 2 | JSON 参数不受支持或解析失败时，自动回退到 `hy-smi` 文本输出 |
+| 3 | 主查询缺少唯一标识或健康状态时，按需执行 `--showuniqueid`、`--healthcheck` 补充查询 |
+| 4 | 主查询缺少显存信息时，按需执行只读的显存补充查询 |
+| 5 | 仅在显式启用时执行 `hy-smi -a`，采集过去 1 秒的利用率和带宽统计 |
+| 6 | 解析每张设备卡的数据，并将单位统一转换为 Prometheus 推荐的基础单位 |
+| 7 | 通过 `/metrics` 输出设备级指标，供 Prometheus 定时抓取 |
+| 8 | 通过 `hy_smi_up` 标识最近一次必需主查询是否成功；可选补充查询失败不会把设备整体误报为不可用 |
 
 显存补充查询包括：
 
@@ -56,6 +58,14 @@ hy-smi --showmemavailable --json
 
 服务还提供 `/healthz` 用于检查 Exporter HTTP 服务是否存活。`/healthz` 返回成功只代表服务进程可以响应；设备命令是否采集成功，应以 `hy_smi_up` 指标为准。
 
+部分利用率和带宽参数统计过去 1 秒的数据，8 卡等多卡机型执行耗时会随设备数量增加。`v1.0.0` 默认关闭这些统计项，启用方式如下：
+
+```bash
+./hy-smi-exporter --hy-smi.collect-1s-stats=true
+```
+
+也可设置 `HY_SMI_EXPORTER_COLLECT_1S_STATS=true`。未启用时，对应的利用率以及 PCIe、XHCL、DF、UMC 带宽指标不会输出，避免用数值 0 误表示“已采集但无负载”。
+
 ## 4 v1.0.0 发布范围
 
 | 项目 | v1.0.0 范围 |
@@ -64,18 +74,20 @@ hy-smi --showmemavailable --json
 | Prometheus 接入 | 支持通过 `/metrics` 标准端点抓取 |
 | 容器场景 | 暂不兼容、不测试、不发布 Docker、Docker Compose、Kubernetes 和容器镜像 |
 | 设备和驱动范围 | 以公开兼容性矩阵为准 |
-| 厂商组件 | 不随项目分发驱动、固件或 `hy-smi` / `hcu-smi` 二进制 |
+| 厂商组件 | 不随项目分发驱动、固件或 `hy-smi` 二进制 |
 | 操作安全 | 仅调用查询命令，不执行设备配置修改、驱动加载、复位或故障注入操作 |
 
-实际兼容性取决于硬件型号、驱动、固件、DTK、`hy-smi` / `hcu-smi` 版本、Linux 发行版和内核版本的组合。详细信息见 [`docs/compatibility.md`](docs/compatibility.md)。
+实际兼容性取决于硬件型号、驱动、固件、DTK、`hy-smi` 版本、Linux 发行版和内核版本的组合。详细信息见 [`docs/compatibility.md`](docs/compatibility.md)。
 
 ## 5 Prometheus 指标
 
 所有设备指标以 `hy_smi_` 为前缀。设备级指标携带 `gpu` 标签，用于区分同一节点上的不同设备；`instance` 标签由 Prometheus 抓取目标自动添加。
 
+下表中利用率指标及 PCIe、XHCL、DF、UMC 带宽指标属于可选 1 秒统计项，默认不输出。
+
 | 指标名 | 类型 | 说明 |
 | --- | --- | --- |
-| `hy_smi_up` | gauge | 最近一次 `hy-smi` / `hcu-smi` 采集是否成功，成功为 1，失败为 0 |
+| `hy_smi_up` | gauge | 最近一次 `hy-smi` 采集是否成功，成功为 1，失败为 0 |
 | `hy_smi_devices` | gauge | 最近一次成功采集发现的 HCU 设备总数 |
 | `hy_smi_info` | gauge (=1) | 设备身份信息，包括设备 ID、序列号、产品名称、VBIOS、驱动、总线、健康状态和工作模式等 |
 | `hy_smi_temperature_celsius` | gauge | 各传感器温度，包括 edge、junction、mem 和 hotspot，单位为摄氏度 |

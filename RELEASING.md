@@ -14,7 +14,8 @@ This project uses semantic version tags and GoReleaser.
    the dependency compliance review in `THIRD_PARTY_NOTICES.md`.
 5. Complete the real-device report, compatibility matrix, metric semantics,
    collaboration/publication boundaries and all pre-artifact RC checks under
-   `release-materials/`. Keep the repository private at this stage.
+   `release-materials/`. Disclose any hardware combination that remains pending
+   targeted re-testing and record its post-release follow-up owner.
 6. Commit the release changes and create an annotated tag, for example:
 
    ```bash
@@ -27,9 +28,9 @@ This project uses semantic version tags and GoReleaser.
 8. Verify the draft assets, checksums, archive contents and installation
    commands. Record the evidence in the RC acceptance and release approval
    forms.
-9. After both parties approve the final draft, publish the GitHub Release,
-   make the approved public repository/history available, and publish the
-   external announcement.
+9. After the Dingmao release owner approves the final draft, publish the GitHub
+   Release and external announcement. A disclosed K100_AI targeted re-test may
+   be completed after release and must not be presented as already verified.
 10. Confirm or register the default port after the repository is public, then
     submit the Prometheus exporter directory PR with a DCO sign-off.
 

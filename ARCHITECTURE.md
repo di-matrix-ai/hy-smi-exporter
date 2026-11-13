@@ -3,13 +3,17 @@
 ## Runtime flow
 
 1. Prometheus requests the configured metrics endpoint.
-2. The collector invokes the configured `hy-smi` or `hcu-smi` executable with
+2. The collector invokes the configured `hy-smi` executable with
    a timeout.
-3. The backend first attempts `-a --json` and falls back to `-a` text output
-   when the JSON command is unavailable or cannot be parsed.
-4. If the main query lacks memory data, the backend performs the supported
-   read-only memory queries.
-5. Parsed device snapshots are converted to `hy_smi_*` metrics and returned to
+3. The backend first attempts the lightweight `hy-smi --json` summary and
+   falls back to `hy-smi` text output when JSON is unavailable or cannot be
+   parsed.
+4. Missing Unique ID, health and memory fields are enriched through the
+   read-only `--showuniqueid`, `--healthcheck` and memory queries.
+5. Detailed one-second utilization and bandwidth statistics are disabled by
+   default. When enabled, the main query uses `-a --json` with `-a` text
+   fallback.
+6. Parsed device snapshots are converted to `hy_smi_*` metrics and returned to
    Prometheus. Collection failures emit `hy_smi_up 0` instead of being reported
    as a healthy node with zero devices.
 
@@ -17,7 +21,7 @@
 Prometheus
     |
     v
-HTTP /metrics -> Collector -> Backend -> hy-smi / hcu-smi -> driver and device
+HTTP /metrics -> Collector -> Backend -> hy-smi -> driver and device
                      |          |
                      |          +-> JSON parser / text fallback
                      +-> Prometheus metric descriptors
@@ -45,7 +49,7 @@ environment.
 
 Parser unit tests protect known output shapes, but they do not replace
 real-device verification. The exporter supports devices through the common
-`hy-smi` / `hcu-smi` command interface rather than hardware-specific access.
+`hy-smi` command interface rather than hardware-specific access.
 A device is in scope when its vendor driver supports it and the command output
 remains compatible with the current parser. `docs/compatibility.md` separately
 records interface-based support and combinations verified on real devices.
