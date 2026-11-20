@@ -449,6 +449,78 @@ esac
 	}
 }
 
+func TestParseTextSummaryTableFallback(t *testing.T) {
+	raw := []byte("Warning: [2026-11-20 10:53:40.363] This command does not support to set print format\n\n" +
+		"================================= System Management Interface ==================================\n" +
+		"================================================================================================\n" +
+		"HCU     Temp     AvgPwr     Perf     PwrCap     VRAM%      HCU%      Dec%      Enc%      Mode     \n" +
+		"0       50.0C    83.0W      manual   1000.0W    10%        42.5%     0.0%      0.0%      Normal   \n" +
+		"1       51.0C    80.0W      auto     1000.0W    N/A        0.0%      N/A       N/A       Normal   \n" +
+		"================================================================================================\n" +
+		"======================================== End of SMI Log ========================================\n")
+	snap, err := parseText(raw)
+	if err != nil {
+		t.Fatalf("parseText summary table: %v", err)
+	}
+	if len(snap.Devices) != 2 {
+		t.Fatalf("devices: want 2, got %d", len(snap.Devices))
+	}
+	d0 := snap.Devices[0]
+	if d0.Index != 0 || d0.TempCelsius != 50.0 || d0.EdgeTempC != 50.0 || d0.PowerWatts != 83.0 ||
+		d0.PerfLevel != "manual" || d0.PowerCapWatts != 1000.0 || d0.VRAMUtilPct != 10.0 ||
+		d0.HCUUtilPct != 42.5 || d0.Mode != "Normal" {
+		t.Errorf("device 0 mismatch: %+v", d0)
+	}
+	d1 := snap.Devices[1]
+	if d1.Index != 1 || d1.TempCelsius != 51.0 || d1.PowerWatts != 80.0 ||
+		d1.PerfLevel != "auto" || d1.VRAMUtilPct != 0 || d1.Mode != "Normal" {
+		t.Errorf("device 1 mismatch: %+v", d1)
+	}
+}
+
+func TestBackendDefaultModeSummaryTableFallback(t *testing.T) {
+	stub := writeStubScript(t, `#!/bin/sh
+case "$*" in
+  *-a*) exit 95 ;;
+  "--json"|"")
+    /bin/cat <<'EOF'
+Warning: [2026-11-20 10:53:40.363] This command does not support to set print format
+================================= System Management Interface ==================================
+HCU     Temp     AvgPwr     Perf     PwrCap     VRAM%      HCU%      Dec%      Enc%      Mode
+0       50.0C    83.0W      manual   1000.0W    0%         0.0%      0.0%      0.0%      Normal
+1       51.0C    80.0W      manual   1000.0W    0%         0.0%      0.0%      0.0%      Normal
+======================================== End of SMI Log ========================================
+EOF
+    ;;
+  "--showuniqueid --json")
+    echo '{"card0":{"Unique ID":"TEST-UID-0"},"card1":{"Unique ID":"TEST-UID-1"}}'
+    ;;
+  "--healthcheck --json")
+    echo '{"card0":{"Health":"Healthy"},"card1":{"Health":"Healthy"}}'
+    ;;
+  "--showmeminfo all --json")
+    echo '{"card0":{"vram Total Memory (MiB)":"65520","vram Total Used Memory (MiB)":"2","gtt Total Memory (MiB)":"257859"},"card1":{"vram Total Memory (MiB)":"65520","vram Total Used Memory (MiB)":"2","gtt Total Memory (MiB)":"257859"}}'
+    ;;
+  "--showmemavailable --json")
+    echo '{"card0":{"Available memory size (MiB)":"65453"},"card1":{"Available memory size (MiB)":"65453"}}'
+    ;;
+  *) exit 96 ;;
+esac
+`)
+	b := New(stub, time.Second, false)
+	logger := slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))
+	snap, err := b.Snapshot(context.Background(), logger)
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if len(snap.Devices) != 2 {
+		t.Fatalf("devices: want 2, got %d", len(snap.Devices))
+	}
+	if snap.Devices[0].PowerCapWatts != 1000 || snap.Devices[0].Mode != "Normal" || snap.Devices[0].UniqueID != "TEST-UID-0" || snap.Devices[0].VRAMTotalBytes != 65520*1024*1024 {
+		t.Errorf("device 0 enriched summary mismatch: %+v", snap.Devices[0])
+	}
+}
+
 func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join("testdata", name))
