@@ -804,6 +804,12 @@ func parseText(raw []byte) (Snapshot, error) {
 	}
 
 	if len(devices) == 0 {
+		if tableSnap, ok := parseSummaryTable(text); ok {
+			if tableSnap.DriverVersion == "" {
+				tableSnap.DriverVersion = snap.DriverVersion
+			}
+			return tableSnap, nil
+		}
 		return Snapshot{}, fmt.Errorf("no HCU records found in text output")
 	}
 	for _, d := range devices {
@@ -861,6 +867,124 @@ func parseBusIDHealth(value string) (string, string) {
 		}
 	}
 	return stringFrom(value), ""
+}
+
+// parseSummaryTable parses the whitespace-delimited default `hy-smi` summary
+// table emitted when `--json` is unsupported and `-a` is not used, for example:
+//
+//	HCU     Temp     AvgPwr     Perf     PwrCap     VRAM%      HCU%      Dec%      Enc%      Mode
+//	0       50.0C    83.0W      manual   1000.0W    0%         0.0%      0.0%      0.0%      Normal
+func parseSummaryTable(text string) (Snapshot, bool) {
+	var headers []string
+	var devices []Device
+	seen := make(map[int]bool)
+
+	for _, rawLine := range strings.Split(text, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "=") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		if headers == nil {
+			if isSummaryTableHeader(fields) {
+				headers = make([]string, len(fields))
+				for i, col := range fields {
+					headers[i] = strings.ToLower(strings.TrimSpace(col))
+				}
+			}
+			continue
+		}
+		idx, err := strconv.Atoi(fields[0])
+		if err != nil || idx < 0 {
+			continue
+		}
+		if seen[idx] {
+			continue
+		}
+		seen[idx] = true
+		d := Device{
+			Index: idx,
+			HCU:   "HCU",
+		}
+		for i := 1; i < len(headers) && i < len(fields); i++ {
+			val := fields[i]
+			switch headers[i] {
+			case "temp":
+				if f, ok := toFloat(val); ok {
+					d.TempCelsius = f
+					d.EdgeTempC = f
+				}
+			case "avgpwr", "pwr", "power":
+				if f, ok := toFloat(val); ok {
+					d.PowerWatts = f
+				}
+			case "perf":
+				d.PerfLevel = stringFrom(val)
+			case "pwrcap":
+				if f, ok := toFloat(val); ok {
+					d.PowerCapWatts = f
+				}
+			case "vram%":
+				if f, ok := toFloat(val); ok {
+					d.VRAMUtilPct = f
+				}
+			case "hcu%", "dcu%", "gpu%":
+				if f, ok := toFloat(val); ok {
+					d.HCUUtilPct = f
+				}
+			case "dec%":
+				if f, ok := toFloat(val); ok {
+					d.DecUtilPct = f
+				}
+			case "enc%":
+				if f, ok := toFloat(val); ok {
+					d.EncUtilPct = f
+				}
+			case "mode":
+				d.Mode = stringFrom(val)
+			case "fan":
+				if f, ok := toFloat(val); ok {
+					d.FanPWMPct = f
+				}
+			case "sclk":
+				if f, ok := toFloat(val); ok {
+					d.SCLKMHz = f
+				}
+			case "mclk":
+				if f, ok := toFloat(val); ok {
+					d.MCLKMHz = f
+				}
+			}
+		}
+		devices = append(devices, d)
+	}
+
+	if len(devices) == 0 {
+		return Snapshot{}, false
+	}
+	sortDevices(devices)
+	return Snapshot{Devices: devices}, true
+}
+
+func isSummaryTableHeader(fields []string) bool {
+	if len(fields) < 3 {
+		return false
+	}
+	first := strings.ToLower(fields[0])
+	if first != "hcu" && first != "dcu" && first != "gpu" {
+		return false
+	}
+	known := 0
+	for _, f := range fields[1:] {
+		switch strings.ToLower(f) {
+		case "temp", "avgpwr", "pwr", "power", "perf", "pwrcap", "vram%", "hcu%", "dcu%", "gpu%", "dec%", "enc%", "mode", "fan", "sclk", "mclk":
+			known++
+		}
+	}
+	return known >= 2
 }
 
 func firstFloat(value string) float64 {
